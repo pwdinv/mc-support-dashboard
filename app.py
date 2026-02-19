@@ -201,7 +201,22 @@ class Sidebar(ctk.CTkFrame):
             self, text="🎵  MC Support",
             font=ctk.CTkFont(size=16, weight="bold"),
             text_color=ACCENT, anchor="w"
-        ).pack(fill="x", padx=18, pady=(28, 8))
+        ).pack(fill="x", padx=18, pady=(28, 2))
+
+        # Live time display under title
+        self._time_lbl = ctk.CTkLabel(
+            self, text="",
+            font=ctk.CTkFont(size=13, weight="bold"),
+            text_color=TEXT_BRIGHT, anchor="w"
+        )
+        self._time_lbl.pack(fill="x", padx=18, pady=(0, 0))
+
+        self._tz_lbl = ctk.CTkLabel(
+            self, text="",
+            font=ctk.CTkFont(size=10),
+            text_color=TEXT_DIM, anchor="w"
+        )
+        self._tz_lbl.pack(fill="x", padx=18, pady=(0, 8))
 
         ctk.CTkFrame(self, height=1, fg_color=DIVIDER).pack(fill="x", padx=12, pady=(0, 16))
 
@@ -230,6 +245,13 @@ class Sidebar(ctk.CTkFrame):
             font=ctk.CTkFont(size=12),
             text_color=TEXT_DIM, anchor="w"
         ).pack(fill="x", padx=18, pady=(0, 22))
+
+    def update_time(self):
+        from datetime import datetime
+        import time
+        now = datetime.now()
+        self._time_lbl.configure(text=now.strftime("%I:%M:%S %p").lstrip("0"))
+        self._tz_lbl.configure(text=time.tzname[0] if time.daylight == 0 else time.tzname[1])
 
     def _navigate(self, label: str):
         for name, btn in self._buttons.items():
@@ -528,8 +550,8 @@ class DashboardApp(ctk.CTk):
         overlay.rowconfigure(0, weight=1)
 
         # ── Sidebar with navigation callback ───────────────────────────────────
-        sidebar = Sidebar(overlay, on_navigate=self._navigate)
-        sidebar.grid(row=0, column=0, sticky="nsew")
+        self._sidebar = Sidebar(overlay, on_navigate=self._navigate)
+        self._sidebar.grid(row=0, column=0, sticky="nsew")
 
         # ── Page container (column 1) ──────────────────────────────────────────
         self._page_container = ctk.CTkFrame(overlay, fg_color="transparent")
@@ -554,8 +576,9 @@ class DashboardApp(ctk.CTk):
         self._cores_page = CoresXMLPage(self._page_container)
         self._cores_page.grid(row=0, column=0, sticky="nsew")
 
-        # Start on Dashboard
+        # Start on Dashboard and start time updates
         self._navigate("Dashboard")
+        self._update_time()
 
         self.update_idletasks()
         draw_gradient(self._canvas, self.winfo_width(), self.winfo_height())
@@ -566,6 +589,10 @@ class DashboardApp(ctk.CTk):
             self._dashboard_page.lift()
         elif page == "Cores.XML":
             self._cores_page.lift()
+
+    def _update_time(self):
+        self._sidebar.update_time()
+        self.after(1000, self._update_time)
 
     # ── Top Bar ────────────────────────────────────────────────────────────────
     def _build_topbar(self, parent):
@@ -583,35 +610,6 @@ class DashboardApp(ctk.CTk):
             bar, text="Wednesday, February 19, 2026",
             font=ctk.CTkFont(size=12), text_color=TEXT_DIM, anchor="w"
         ).grid(row=1, column=0, sticky="w")
-
-        # Live time with timezone (right-aligned)
-        time_frame = ctk.CTkFrame(bar, fg_color="transparent")
-        time_frame.grid(row=0, column=1, rowspan=2, sticky="e")
-        time_frame.columnconfigure(0, weight=1)
-
-        self._time_lbl = ctk.CTkLabel(
-            time_frame, text="",
-            font=ctk.CTkFont(size=24, weight="bold"),
-            text_color=TEXT_BRIGHT, anchor="e"
-        )
-        self._time_lbl.grid(row=0, column=0, sticky="e")
-
-        self._tz_lbl = ctk.CTkLabel(
-            time_frame, text="",
-            font=ctk.CTkFont(size=11),
-            text_color=TEXT_DIM, anchor="e"
-        )
-        self._tz_lbl.grid(row=1, column=0, sticky="e")
-
-        self._update_time()
-
-    def _update_time(self):
-        from datetime import datetime
-        import time
-        now = datetime.now()
-        self._time_lbl.configure(text=now.strftime("%I:%M:%S %p").lstrip("0"))
-        self._tz_lbl.configure(text=time.tzname[0] if time.daylight == 0 else time.tzname[1])
-        self.after(1000, self._update_time)
 
     # ── Stat Cards ─────────────────────────────────────────────────────────────
     def _build_stats(self, parent):
