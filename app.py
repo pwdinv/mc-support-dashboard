@@ -549,7 +549,6 @@ class DashboardApp(ctk.CTk):
         self._build_topbar(self._dashboard_page)
         self._build_stats(self._dashboard_page)
         self._build_middle(self._dashboard_page)
-        self._build_activity(self._dashboard_page)
 
         # ── Cores.XML page ─────────────────────────────────────────────────────
         self._cores_page = CoresXMLPage(self._page_container)
@@ -610,7 +609,7 @@ class DashboardApp(ctk.CTk):
         from datetime import datetime
         import time
         now = datetime.now()
-        self._time_lbl.configure(text=now.strftime("%I:%M %p").lstrip("0"))
+        self._time_lbl.configure(text=now.strftime("%I:%M:%S %p").lstrip("0"))
         self._tz_lbl.configure(text=time.tzname[0] if time.daylight == 0 else time.tzname[1])
         self.after(1000, self._update_time)
 
