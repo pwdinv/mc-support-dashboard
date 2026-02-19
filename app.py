@@ -283,42 +283,56 @@ class CoresXMLPage(ctk.CTkFrame):
     def __init__(self, master, **kw):
         super().__init__(master, fg_color="transparent", **kw)
         self.columnconfigure(0, weight=1)
-        self.rowconfigure(2, weight=1)
+        self.rowconfigure(1, weight=1)
         self._build()
 
     def _build(self):
-        # ── Page title ─────────────────────────────────────────────────────────
+        # ── Page title bar with buttons ─────────────────────────────────────────
         title_bar = ctk.CTkFrame(self, fg_color="transparent")
         title_bar.grid(row=0, column=0, sticky="ew", padx=20, pady=(20, 4))
         title_bar.columnconfigure(0, weight=1)
+        title_bar.columnconfigure(1, weight=0)
+
+        # Left side: title and source path
+        left_frame = ctk.CTkFrame(title_bar, fg_color="transparent")
+        left_frame.grid(row=0, column=0, sticky="w")
+        left_frame.columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
-            title_bar, text="Cores.XML Viewer",
+            left_frame, text="Cores.XML Viewer",
             font=ctk.CTkFont(size=22, weight="bold"),
             text_color=TEXT_BRIGHT, anchor="w"
         ).grid(row=0, column=0, sticky="w")
 
         self._source_lbl = ctk.CTkLabel(
-            title_bar, text="Scanning…",
+            left_frame, text="Scanning…",
             font=ctk.CTkFont(size=11), text_color=TEXT_DIM, anchor="w"
         )
         self._source_lbl.grid(row=1, column=0, sticky="w")
 
-        # ── Refresh button ─────────────────────────────────────────────────────
-        btn_row = ctk.CTkFrame(self, fg_color="transparent")
-        btn_row.grid(row=1, column=0, sticky="ew", padx=20, pady=(4, 10))
+        # Right side: buttons
+        btn_frame = ctk.CTkFrame(title_bar, fg_color="transparent")
+        btn_frame.grid(row=0, column=1, sticky="e")
 
         ctk.CTkButton(
-            btn_row, text="⟳  Refresh",
+            btn_frame, text="📋 Copy Content",
+            fg_color="#2A1E1A", hover_color="#3D2B22",
+            text_color=TEXT_BRIGHT, font=ctk.CTkFont(size=12),
+            corner_radius=8, height=34, width=130,
+            command=self._copy_content,
+        ).pack(side="left", padx=(0, 8))
+
+        ctk.CTkButton(
+            btn_frame, text="⟳ Refresh",
             fg_color=ACCENT, hover_color="#A06840",
-            text_color="#1A0F0A", font=ctk.CTkFont(size=13, weight="bold"),
-            corner_radius=8, height=36, width=140,
+            text_color="#1A0F0A", font=ctk.CTkFont(size=12, weight="bold"),
+            corner_radius=8, height=34, width=100,
             command=self._load,
         ).pack(side="left")
 
         # ── Tab view ───────────────────────────────────────────────────────────
         tab_container = ctk.CTkFrame(self, fg_color=CARD_BG, corner_radius=CORNER)
-        tab_container.grid(row=2, column=0, sticky="nsew", padx=20, pady=(0, 20))
+        tab_container.grid(row=1, column=0, sticky="nsew", padx=20, pady=(10, 20))
         tab_container.columnconfigure(0, weight=1)
         tab_container.rowconfigure(1, weight=1)
 
@@ -374,6 +388,17 @@ class CoresXMLPage(ctk.CTkFrame):
         self._active_tab = "readable"
         self._switch_tab("readable")
         self._load()
+
+    # ── Copy content to clipboard ──────────────────────────────────────────────
+    def _copy_content(self):
+        import tkinter as tk
+        content = ""
+        if self._active_tab == "readable":
+            content = self._readable_box.get("0.0", "end")
+        else:
+            content = self._raw_box.get("0.0", "end")
+        self.clipboard_clear()
+        self.clipboard_append(content)
 
     # ── Tab switching ──────────────────────────────────────────────────────────
     def _switch_tab(self, tab: str):
