@@ -1,0 +1,143 @@
+# Music Concierge Support Dashboard - AI Agent Rules
+
+## Project Overview
+This is a Windows desktop application built with Python and customtkinter for the Music Concierge support team. It provides a dashboard interface with XML configuration viewers for Kaleidovision audio player systems.
+
+## Tech Stack
+- **Language**: Python 3
+- **GUI Framework**: customtkinter (modern tkinter alternative)
+- **UI Styling**: Windows Fluent/Acrylic blur effects via pywinstyles
+- **XML Processing**: xml.etree.ElementTree
+- **File Operations**: Standard library (os, subprocess)
+
+## Project Structure
+```
+mc-support-dashboard/
+├── app.py              # Main application - all UI and logic
+├── example_cores.xml   # Reference XML for development/testing
+├── .gitignore          # Git exclusions
+├── .cursorrules        # This file - project context for AI agents
+└── README.md           # User documentation
+```
+
+## Key Constants & Config
+- **Sidebar width**: 220px
+- **Sidebar background**: `#180F0F` (dark brown)
+- **Accent color**: `#C8865A` (bronze/copper)
+- **Base path for XML**: `C:\Kaleidovision\config\kv`
+- **Folder datetime format**: `YYYY-MM-DD-HHMM` (e.g., `2024-01-15-1430`)
+
+## Application Pages
+1. **Dashboard** - Support metrics, shortcuts, notes
+2. **Cores.XML** - Displays cores.xml with:
+   - Readable tab: MC Service URL, channel list with metadata
+   - Raw tab: Original XML content
+   - Edit button: Opens file in Notepad
+3. **Config.XML** - Same UI pattern as Cores.XML for config.xml
+
+## XML Data Model (cores.xml)
+
+### KvSilva Channels Structure
+```xml
+<KvCore APPLICATION="KvSilva">
+  <Programs>
+    <Program>
+      <Channels>
+        <Channel Id="Channel1" Name="Main" EntityId="30211">
+          <Settings>
+            <Misc TrackingPeriod="00:00" ... />
+            <ManagementApp Enabled="YES" ... />
+          </Settings>
+        </Channel>
+      </Channels>
+    </Program>
+  </Programs>
+</KvCore>
+```
+
+### Extracted Channel Data
+For each channel in KvSilva:
+- **name**: From `Name` attribute
+- **entity_id**: From `EntityId` attribute
+- **tracking_period**: From `Settings/Misc/@TrackingPeriod`
+- **mc_app_enabled**: From `Settings/ManagementApp/@Enabled` (YES/NO)
+
+### MC Service App URL
+Located at: `McServiceApp > Programs > Program > Settings > misc/@url`
+
+## UI Patterns
+
+### Card/Box Design
+- Background: `CARD_BG` constant (dark brown)
+- Corner radius: `CORNER` constant (typically 12)
+- Padding: 14px internal, 8-12px between elements
+- Border: subtle 1px using `DIVIDER` color
+
+### Color Scheme
+- **TEXT_BRIGHT**: White/light text for headings
+- **TEXT_DIM**: Muted gray for secondary text
+- **TEXT_GREEN**: `#4CAF50` for positive/enabled states
+- **TEXT_RED**: `#F44336` for negative/disabled states
+
+### Buttons
+- Primary action: `ACCENT` color (`#C8865A`)
+- Secondary action: `#2A1E1A` with `#3D2B22` hover
+- Height: 32-34px
+- Corner radius: 8px
+
+## Important Code Patterns
+
+### Tab Switching
+Two overlapping widgets in same grid position, use `.lift()` to switch:
+```python
+self._readable_frame.lift()  # Show readable
+self._raw_content_frame.lift()  # Show raw
+```
+
+### XML File Discovery
+Scan `C:\Kaleidovision\config\kv` for subfolders matching `YYYY-MM-DD-HHMM`, pick latest by datetime.
+
+### Scrollable Content
+Use `CTkScrollableFrame` for content that may exceed viewport:
+```python
+frame = ctk.CTkScrollableFrame(
+    parent, fg_color="transparent",
+    scrollbar_button_color=DIVIDER,
+    scrollbar_button_hover_color=ACCENT,
+)
+```
+
+## File Modification Guidelines
+
+### When Adding New XML Parsers
+1. Add extraction method in CoresXMLPage class
+2. Return structured data (dict or list of dicts)
+3. Update `_build_readable_view()` to display new data
+4. Handle missing elements gracefully (return None/empty/default)
+
+### When Adding New Buttons
+1. Place in title bar button frame
+2. Use consistent styling (see UI Patterns)
+3. Add command handler method
+4. For external tools (Notepad), use `subprocess.Popen()`
+
+### When Adding New Pages
+1. Follow existing page class pattern (CoresXMLPage, ConfigXMLPage)
+2. Use `fg_color="transparent"` for frames
+3. Configure grid weights for responsive layout
+4. Add navigation item to Sidebar._NAV
+5. Add page instance in DashboardApp._build_ui()
+6. Add case in DashboardApp._navigate()
+
+## Common Pitfalls
+- **Grid weights**: Always set `columnconfigure(0, weight=1)` for responsive width
+- **Tab switching**: Ensure both tabs are in the same parent with same grid position
+- **XML parsing**: Element names are case-sensitive (`Misc` vs `misc`)
+- **File paths**: Always check `os.path.isfile()` before opening
+
+## Testing References
+The `example_cores.xml` contains realistic data with:
+- 2 channels (Channel1, Channel2)
+- Entity IDs: 30211, 30212
+- MC Service URL: https://kvhub.co.uk/
+- Mixed ManagementApp enabled states
