@@ -569,7 +569,17 @@ class CoresXMLPage(ctk.CTkFrame):
             row=0, column=0, sticky="ew", padx=0, pady=(46, 0)
         )
 
-        # Content area — two overlapping textboxes, one shown at a time
+        # Content area — scrollable frame for readable, textbox container for raw
+        # Readable tab: scrollable frame with custom UI
+        self._readable_frame = ctk.CTkScrollableFrame(
+            tab_container, fg_color="transparent",
+            scrollbar_button_color=DIVIDER,
+            scrollbar_button_hover_color=ACCENT,
+        )
+        self._readable_frame.grid(row=1, column=0, sticky="nsew", padx=12, pady=12)
+        self._readable_frame.columnconfigure(0, weight=1)
+
+        # Raw tab: textbox container
         content = ctk.CTkFrame(tab_container, fg_color="transparent")
         content.grid(row=1, column=0, sticky="nsew", padx=12, pady=12)
         content.columnconfigure(0, weight=1)
@@ -586,9 +596,6 @@ class CoresXMLPage(ctk.CTkFrame):
             state="disabled",
         )
 
-        self._readable_box = ctk.CTkTextbox(content, **common)
-        self._readable_box.grid(row=0, column=0, sticky="nsew")
-
         self._raw_box = ctk.CTkTextbox(content, **common)
         self._raw_box.grid(row=0, column=0, sticky="nsew")
 
@@ -598,10 +605,9 @@ class CoresXMLPage(ctk.CTkFrame):
 
     # ── Copy content to clipboard ──────────────────────────────────────────────
     def _copy_content(self):
-        import tkinter as tk
         content = ""
         if self._active_tab == "readable":
-            content = self._readable_box.get("0.0", "end")
+            content = self._raw_box.get("0.0", "end")
         else:
             content = self._raw_box.get("0.0", "end")
         self.clipboard_clear()
@@ -611,7 +617,7 @@ class CoresXMLPage(ctk.CTkFrame):
     def _switch_tab(self, tab: str):
         self._active_tab = tab
         if tab == "readable":
-            self._readable_box.lift()
+            self._readable_frame.lift()
             self._tab_readable_btn.configure(fg_color=ACCENT, text_color="#1A0F0A",
                                              font=ctk.CTkFont(size=12, weight="bold"))
             self._tab_raw_btn.configure(fg_color="#2A1E1A", text_color=TEXT_BRIGHT,
@@ -630,6 +636,126 @@ class CoresXMLPage(ctk.CTkFrame):
         box.insert("0.0", content)
         box.configure(state="disabled")
 
+    def _clear_readable_frame(self):
+        """Remove all widgets from the readable frame."""
+        for widget in self._readable_frame.winfo_children():
+            widget.destroy()
+
+    def _show_error_in_readable(self, message: str):
+        """Display an error message in the readable frame."""
+        self._clear_readable_frame()
+        ctk.CTkLabel(
+            self._readable_frame, text=message,
+            font=ctk.CTkFont(size=12), text_color=TEXT_RED
+        ).grid(row=0, column=0, sticky="w")
+
+    def _extract_mcservice_url(self, root) -> str | None:
+        """Extract the URL from McServiceApp's misc settings."""
+        for kvcore in root.findall("KvCore"):
+            if kvcore.get("APPLICATION") == "McServiceApp":
+                programs = kvcore.find("Programs")
+                if programs is not None:
+                    program = programs.find("Program")
+                    if program is not None:
+                        settings = program.find("Settings")
+                        if settings is not None:
+                            misc = settings.find("misc")
+                            if misc is not None:
+                                return misc.get("url")
+        return None
+
+    def _extract_kv_silva_channels(self, root) -> list[str]:
+        """Extract channel names from KvSilva's Channels section."""
+        channels = []
+        for kvcore in root.findall("KvCore"):
+            if kvcore.get("APPLICATION") == "KvSilva":
+                programs = kvcore.find("Programs")
+                if programs is not None:
+                    program = programs.find("Program")
+                    if program is not None:
+                        channels_elem = program.find("Channels")
+                        if channels_elem is not None:
+                            for channel in channels_elem.findall("Channel"):
+                                name = channel.get("Name")
+                                if name:
+                                    channels.append(name)
+        return channels
+
+    def _build_readable_view(self, xml_path: str, raw_content: str):
+        """Build the readable view with extracted XML data."""
+        self._clear_readable_frame()
+
+        try:
+            tree = ET.parse(xml_path)
+            root = tree.getroot()
+        except Exception as e:
+            self._show_error_in_readable(f"[Error parsing XML: {e}]")
+            return
+
+        # ── MC Service App URL ────────────────────────────────────────────────
+        mc_url = self._extract_mcservice_url(root)
+        url_frame = ctk.CTkFrame(self._readable_frame, fg_color=CARD_BG, corner_radius=CORNER)
+        url_frame.grid(row=0, column=0, sticky="ew", pady=(0, 12))
+        url_frame.columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            url_frame, text="MC Service App URL",
+            font=ctk.CTkFont(size=10), text_color=TEXT_DIM, anchor="w"
+        ).grid(row=0, column=0, sticky="w", padx=14, pady=(10, 2))
+
+        url_text = mc_url if mc_url else "Not configured"
+        ctk.CTkLabel(
+            url_frame, text=url_text,
+            font=ctk.CTkFont(size=14, weight="bold"), text_color=ACCENT, anchor="w"
+        ).grid(row=1, column=0, sticky="w", padx=14, pady=(2, 10))
+
+        # ── Channels Section ────────────────────────────────────────────────────
+        channels = self._extract_kv_silva_channels(root)
+        channel_count = len(channels)
+
+        count_frame = ctk.CTkFrame(self._readable_frame, fg_color="transparent")
+        count_frame.grid(row=1, column=0, sticky="ew", pady=(0, 12))
+        count_frame.columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            count_frame,
+            text=f"No. of channels: {channel_count}",
+            font=ctk.CTkFont(size=14, weight="bold"), text_color=TEXT_BRIGHT, anchor="w"
+        ).grid(row=0, column=0, sticky="w")
+
+        if channel_count == 0:
+            ctk.CTkLabel(
+                self._readable_frame, text="No channels found in KvSilva configuration.",
+                font=ctk.CTkFont(size=12), text_color=TEXT_DIM
+            ).grid(row=2, column=0, sticky="w", pady=(10, 0))
+            return
+
+        # ── Channel Boxes ───────────────────────────────────────────────────────
+        channels_frame = ctk.CTkFrame(self._readable_frame, fg_color="transparent")
+        channels_frame.grid(row=2, column=0, sticky="ew")
+        channels_frame.columnconfigure(0, weight=1)
+
+        for idx, channel_name in enumerate(channels, start=1):
+            channel_box = ctk.CTkFrame(channels_frame, fg_color=CARD_BG, corner_radius=CORNER)
+            channel_box.grid(row=idx - 1, column=0, sticky="ew", pady=8)
+            channel_box.columnconfigure(1, weight=1)
+
+            # Sequence number badge
+            seq_frame = ctk.CTkFrame(channel_box, fg_color=ACCENT, corner_radius=6, width=36, height=36)
+            seq_frame.grid(row=0, column=0, padx=(14, 10), pady=14)
+            seq_frame.grid_propagate(False)
+
+            ctk.CTkLabel(
+                seq_frame, text=str(idx),
+                font=ctk.CTkFont(size=16, weight="bold"), text_color="#1A0F0A", anchor="center"
+            ).place(relx=0.5, rely=0.5, anchor="center")
+
+            # Channel name
+            ctk.CTkLabel(
+                channel_box, text=channel_name,
+                font=ctk.CTkFont(size=15, weight="bold"), text_color=TEXT_BRIGHT, anchor="w"
+            ).grid(row=0, column=1, sticky="w", padx=(0, 14), pady=14)
+
     def _load(self):
         folder_name, xml_path = find_latest_cores_xml()
 
@@ -637,9 +763,9 @@ class CoresXMLPage(ctk.CTkFrame):
             self._source_lbl.configure(
                 text=f"Base path not found: {KV_BASE}", text_color=TEXT_RED
             )
-            self._set_textbox(self._readable_box,
-                              f"[Directory not found]\n\nExpected base path:\n  {KV_BASE}\n\n"
-                              "Please ensure Kaleidovision is installed and the config folder exists.")
+            self._show_error_in_readable(
+                f"[Directory not found]\n\nExpected base path:\n  {KV_BASE}\n\n"
+                "Please ensure Kaleidovision is installed and the config folder exists.")
             self._set_textbox(self._raw_box, "")
             return
 
@@ -647,8 +773,8 @@ class CoresXMLPage(ctk.CTkFrame):
             self._source_lbl.configure(
                 text=f"cores.xml not found in: {folder_name}", text_color=TEXT_RED
             )
-            self._set_textbox(self._readable_box,
-                              f"[File not found]\n\nLooked for:\n  {xml_path}")
+            self._show_error_in_readable(
+                f"[File not found]\n\nLooked for:\n  {xml_path}")
             self._set_textbox(self._raw_box, "")
             return
 
@@ -664,7 +790,7 @@ class CoresXMLPage(ctk.CTkFrame):
         )
 
         readable, raw = pretty_xml(xml_path)
-        self._set_textbox(self._readable_box, readable)
+        self._build_readable_view(xml_path, readable)
         self._set_textbox(self._raw_box, raw)
         self._switch_tab(self._active_tab)
 

@@ -1,0 +1,111 @@
+<?xml version="1.0" ?>
+<KvCores>
+  <KvCore APPLICATION="kvutils" RELEASENAME="v1_1" DEFAULTCORE="NO" ID="30385"/>
+  <KvCore APPLICATION="Unzip" RELEASENAME="v5_51" DEFAULTCORE="NO" ID="30386"/>
+  <KvCore APPLICATION="KvAutoUpdate" RELEASENAME="2019-10-23-1700" DEFAULTCORE="NO" ID="12372"/>
+  <KvCore APPLICATION="Wamp" RELEASENAME="2_2_php_5_3_13_xsl_noerrors" DEFAULTCORE="NO" ID="30388">
+    <Programs Path="C:\Kaleidovision\bin\Wamp\2_2_php_5_3_13_xsl_noerrors\" AppStartInterval="0" PreExecutionSleep="0" PostExecutionSleep="0">
+      <Program CmdLine="_KaleidovisionConfigKvDirectory_InitiateWebApps.bat" RunOncePerChannel="NO" AutoRun="YES" RunWithoutDefaultParams="YES"/>
+    </Programs>
+  </KvCore>
+  <KvCore APPLICATION="winEvents" RELEASENAME="v1_5" DEFAULTCORE="NO" ID="145380">
+    <Programs Path="C:\Kaleidovision\bin\winEvents\v1_5\" AppStartInterval="1000" PreExecutionSleep="10000" PostExecutionSleep="0">
+      <Program CmdLine="winEvents.exe" RunOncePerChannel="NO" AutoRun="YES" RunWithoutDefaultParams="NO">
+        <Params>
+          <Param Name="-p C:\Kaleidovision\SharedLogfiles"/>
+        </Params>
+      </Program>
+    </Programs>
+  </KvCore>
+  <KvCore APPLICATION="CPlusPlusRuntime" RELEASENAME="2010_x86" DEFAULTCORE="NO" ID="30387"/>
+  <KvCore XML-SORT-ORDER="2" APPLICATION="Win10UpdateDisable" RELEASENAME="v1_0" DEFAULTCORE="NO" ID="33083">
+    <Programs Path="C:\Kaleidovision\bin\Win10UpdateDisable\v1_0\" AppStartInterval="0" PreExecutionSleep="0" PostExecutionSleep="0">
+      <Program CmdLine="disableUpdate.bat" RunOncePerChannel="NO" AutoRun="YES" RunWithoutDefaultParams="YES"/>
+    </Programs>
+  </KvCore>
+  <KvCore XML-SORT-ORDER="4" APPLICATION="McServiceApp" RELEASENAME="v1_0_9_32bithide" DEFAULTCORE="NO" ID="145383">
+    <Programs Path="C:\Kaleidovision\bin\McServiceApp\v1_0_9_32bithide\" AppStartInterval="1000" PreExecutionSleep="10000" PostExecutionSleep="30000">
+      <Program CmdLine="KvMcServiceApp.exe" RunOncePerChannel="NO" AutoRun="YES" RunWithoutDefaultParams="NO">
+        <Settings>
+          <misc url="https://kvhub.co.uk/"/>
+        </Settings>
+      </Program>
+    </Programs>
+  </KvCore>
+  <KvCore XML-SORT-ORDER="5" APPLICATION="KvDesktop" RELEASENAME="v3_1_20" DEFAULTCORE="NO" ID="30382">
+    <Programs Path="C:\Kaleidovision\bin\KvDesktop\v3_1_20\" AppStartInterval="1000" PreExecutionSleep="0" PostExecutionSleep="0">
+      <Program CmdLine="KvDesktop.exe" RunOncePerChannel="NO" AutoRun="NO" RunWithoutDefaultParams="NO">
+        <Settings>
+          <misc allow-minimise="yes" launch-explorer="yes" background-image="kl2.background_mc"/>
+          <info about="Welcome to the launcher of Music Concierge's audio player which is designed and supported by our technology partner Kaleidovision Ltd." about-colour="#FFFFFF" tray-tip-text="Music Concierge"/>
+        </Settings>
+      </Program>
+      <Program CmdLine="_KaleidovisionConfigKvDirectory_autoRestartTaskScheduler.bat" RunOncePerChannel="NO" AutoRun="YES" RunWithoutDefaultParams="NO"/>
+    </Programs>
+  </KvCore>
+  <KvCore XML-SORT-ORDER="6" APPLICATION="KL4" RELEASENAME="v1_3_11" DEFAULTCORE="NO" ID="145381">
+    <Programs Path="C:\Kaleidovision\bin\KL4\v1_3_11\" AppStartInterval="60000" PreExecutionSleep="0" PostExecutionSleep="1000">
+      <Program CmdLine="KL4MusicScheduler.exe" RunOncePerChannel="YES" AutoRun="YES" RunWithoutDefaultParams="NO">
+        <Params>
+          <Param Name="NoShow"/>
+        </Params>
+        <Settings>
+          <Database Watershed="20:00" MangleArtistNames="NO" IncludeProfilesInDatabase="NO" DisableHourTracking="NO" SkipDatFileCheck="NO" LogPlaylist="YES" REMOVE-PREVIOUS="YES"/>
+          <Misc TrackingPeriod="02:00" HolidaySet="England" PlayerWatchDog="10000" HideHiddenProfiles="YES" CheckTrackTimeYesterday="YES" CheckTrackTimeYesterdayMinutes="120" DefaultInterProfileDuration="60" RefreshGfxSchedule="NO" ALLOW-EXTERNAL-MEDIA="YES" EXTERNAL-MEDIA-PATH="\music" IgnoreMediaclipControlFile="YES"/>
+          <Paths MediaClips="mediaclips" Profiles="profiles" mp3="c:\clips\mp3" mpeg="c:\clips\mpeg"/>
+        </Settings>
+        <Channels>
+          <Channel Id="Channel1" Name="BKK Office BMax B4 Mini for Testing SYS1 1 Main" EntityId="30211">
+            <Settings>
+              <Misc HttpPort="1000" TrackingPeriod="00:00" ChannelEntityId="30211" CurrentPlayingFilename="kl4.currentplaying.channel1.xml" KL4MusicScheduleOverride="YES" KL4MusicScheduleOverrideUrl="http%3A%2F%2F91.217.245.48%2Fctp%2FxmlFeedPassThru.php%3Fentityid%3D30210%26channel%3DChannel1" KL4MusicScheduleOverridePollInterval="300000" KL4MusicScheduleOverrideCheckInterval="10000" KL4MusicScheduleOverrideIntroInterval="0"/>
+              <ManagementApp Enabled="YES" TrackURL="http://127.0.0.1:3456/tracks/Channel1" PlaylistURL="http://127.0.0.1:3456/profiles/Channel1"/>
+            </Settings>
+          </Channel>
+          <Channel Id="Channel2" Name="BKK Office BMax B4 Mini for Testing SYS1 2 Safe Entity" EntityId="30212">
+            <Settings>
+              <Misc ChannelEntityId="30212" HttpPort="1001" TrackingPeriod="00:00" CurrentPlayingFilename="kl4.currentplaying.channel2.xml"/>
+              <ManagementApp Enabled="YES" TrackURL="http://127.0.0.1:3456/tracks/Channel2" PlaylistURL="http://127.0.0.1:3456/profiles/Channel2"/>
+            </Settings>
+          </Channel>
+        </Channels>
+      </Program>
+    </Programs>
+  </KvCore>
+  <KvCore XML-SORT-ORDER="10" APPLICATION="PowerOff" RELEASENAME="3_0_1_3" DEFAULTCORE="NO" ID="30381">
+    <Programs Path="C:\Kaleidovision\bin\PowerOff\3_0_1_3\" AppStartInterval="1000" PreExecutionSleep="0" PostExecutionSleep="0">
+      <Program CmdLine="installAsService.bat" RunOncePerChannel="NO" AutoRun="YES" RunWithoutDefaultParams="NO"/>
+      <Program CmdLine="_KaleidovisionConfigKvDirectory_importPowerOffRegSettings.bat" RunOncePerChannel="NO" AutoRun="YES" RunWithoutDefaultParams="NO"/>
+    </Programs>
+  </KvCore>
+  <KvCore XML-SORT-ORDER="11" APPLICATION="KvDesktopLauncher" RELEASENAME="v1_1" DEFAULTCORE="NO" ID="30380"/>
+  <KvCore XML-SORT-ORDER="13" APPLICATION="KvSilva" RELEASENAME="v2_0_50" DEFAULTCORE="NO" ID="145382">
+    <Programs Path="C:\Kaleidovision\bin\KvSilva\v2_0_50\" AppStartInterval="12000" PreExecutionSleep="120000" PostExecutionSleep="1000">
+      <Program CmdLine="kvsilva.exe" RunOncePerChannel="NO" AutoRun="YES" RunWithoutDefaultParams="NO" UserButtonCaption="Music Player" AddUserButton="YES">
+        <Settings>
+          <AudioDevice nameOrIndex="0"/>
+          <AudioRoutingAuto RoutingInDeckA="0" RoutingInDeckB="0" RoutingInMicrophone="0" RoutingOutDeckA="2" RoutingOutDeckB="2" RoutingOutHeadphones="0" RoutingOutSamplerMic="0" RoutingOutZone2="3" RoutingOutZone3="0" RoutingOutZone4="0" RoutingOutZone5="0"/>
+          <AudioRoutingManual RoutingInDeckA="0" RoutingInDeckB="0" RoutingInMicrophone="0" RoutingOutDeckA="0" RoutingOutDeckB="0" RoutingOutHeadphones="0" RoutingOutSamplerMic="0" RoutingOutZone2="0" RoutingOutZone3="0" RoutingOutZone4="0" RoutingOutZone5="0"/>
+          <Config Audio="true" Video="false" OpenGL="false" BeatMatch="false" VolumeLeveling="true" VolumeLevelingGain="0" HighQualityTimePitch="false" Skin="skins-kv\kv1024auto2.xml" VideoX="100" VideoY="100" VideoHQ="false" InitialVolume="100" ShortageRateLimitSeconds="30" ShortageDuration="3600000"/>
+          <Misc WatchdogEnable="YES" WatchdogTitle="KV Silva" WatchdogProcessesToKill="WerFault.exe,kvsilva.exe"/>
+        </Settings>
+        <Channels>
+          <Channel Id="Channel1" Name="Main">
+            <Settings>
+              <misc SchedulerHttpPort="1000" AudioOut="0"/>
+            </Settings>
+          </Channel>
+          <Channel Id="Channel2" Name="Safe Entity">
+            <Settings>
+              <misc SchedulerHttpPort="1001" AudioOut="1"/>
+            </Settings>
+          </Channel>
+        </Channels>
+      </Program>
+    </Programs>
+  </KvCore>
+  <KvCore XML-SORT-ORDER="23" APPLICATION="KL4SilvaWebView" RELEASENAME="v1_1_2" DEFAULTCORE="NO" ID="30384">
+    <Programs Path="C:\Kaleidovision\bin\KL4SilvaWebView\v1_1_2\" AppStartInterval="1000" PreExecutionSleep="0" PostExecutionSleep="0" RunOncePerChannel="NO" AutoRun="NO" RunWithoutDefaultParams="YES">
+      <Program CmdLine="KL4SWVWebRoot" RunOncePerChannel="NO" AutoRun="NO" RunWithoutDefaultParams="NO" AccessControl="YES" PinCode="1442"/>
+    </Programs>
+  </KvCore>
+</KvCores>
