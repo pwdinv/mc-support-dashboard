@@ -37,13 +37,14 @@ mc-support-dashboard/
 
 ## XML Data Model (cores.xml)
 
-### KvSilva Channels Structure
+### KL4 Channels Structure
+Channels are found under the `KL4` application (NOT `KvSilva`):
 ```xml
-<KvCore APPLICATION="KvSilva">
+<KvCore APPLICATION="KL4">
   <Programs>
     <Program>
       <Channels>
-        <Channel Id="Channel1" Name="Main" EntityId="30211">
+        <Channel Id="Channel1" Name="BKK Office... 1 Main" EntityId="30211">
           <Settings>
             <Misc TrackingPeriod="00:00" ... />
             <ManagementApp Enabled="YES" ... />
@@ -55,15 +56,30 @@ mc-support-dashboard/
 </KvCore>
 ```
 
+### Channel Name Parsing
+The `Name` attribute contains a full descriptive name like:
+- `"BKK Office BMax B4 Mini for Testing SYS1 1 Main"`
+- `"BKK Office BMax B4 Mini for Testing SYS1 2 Safe Entity"`
+
+Extract the short name by finding the number in the name and taking everything after it:
+- Channel 1: "Main"
+- Channel 2: "Safe Entity"
+
 ### Extracted Channel Data
-For each channel in KvSilva:
-- **name**: From `Name` attribute
-- **entity_id**: From `EntityId` attribute
-- **tracking_period**: From `Settings/Misc/@TrackingPeriod`
-- **mc_app_enabled**: From `Settings/ManagementApp/@Enabled` (YES/NO)
+For each channel in KL4:
+- **name**: Short name extracted from `Name` attribute (e.g., "Main")
+- **entity_id**: From `EntityId` attribute (e.g., "30211")
+- **tracking_period**: From `Settings/Misc/@TrackingPeriod` (e.g., "00:00")
+- **mc_app_enabled**: True if `Settings/ManagementApp/@Enabled` == "YES", else False
 
 ### MC Service App URL
 Located at: `McServiceApp > Programs > Program > Settings > misc/@url`
+
+### Display Format
+Channel info should display as:
+- **Name**: `{short_name} [{entity_id}]` → e.g., "Main [30211]"
+- **Tracking Period**: Show actual value or "N/A" if empty
+- **MC App**: "Enabled" (green) if tag exists with YES, else "Disabled" (red)
 
 ## UI Patterns
 
@@ -130,6 +146,8 @@ frame = ctk.CTkScrollableFrame(
 6. Add case in DashboardApp._navigate()
 
 ## Common Pitfalls
+- **Application name**: Channels are under `KL4` not `KvSilva` - always verify the actual APPLICATION attribute value in the XML
+- **Channel name parsing**: The Name attribute contains a long descriptive string - extract the short name by finding the number and taking everything after it
 - **Grid weights**: Always set `columnconfigure(0, weight=1)` for responsive width
 - **Tab switching**: Ensure both tabs are in the same parent with same grid position
 - **XML parsing**: Element names are case-sensitive (`Misc` vs `misc`)
