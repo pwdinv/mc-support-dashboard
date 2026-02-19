@@ -679,11 +679,11 @@ class CoresXMLPage(ctk.CTkFrame):
         if xml_path and os.path.isfile(xml_path):
             subprocess.Popen(["notepad.exe", xml_path])
 
-    def _extract_kv_silva_channels(self, root) -> list[dict]:
-        """Extract channel data from KvSilva's Channels section."""
+    def _extract_kl4_channels(self, root) -> list[dict]:
+        """Extract channel data from KL4's Channels section."""
         channels = []
         for kvcore in root.findall("KvCore"):
-            if kvcore.get("APPLICATION") == "KvSilva":
+            if kvcore.get("APPLICATION") == "KL4":
                 programs = kvcore.find("Programs")
                 if programs is not None:
                     program = programs.find("Program")
@@ -691,8 +691,23 @@ class CoresXMLPage(ctk.CTkFrame):
                         channels_elem = program.find("Channels")
                         if channels_elem is not None:
                             for channel in channels_elem.findall("Channel"):
-                                name = channel.get("Name", "")
+                                full_name = channel.get("Name", "")
                                 entity_id = channel.get("EntityId", "")
+                                
+                                # Extract short name from full name
+                                # Format: "BKK Office BMax B4 Mini for Testing SYS1 1 Main"
+                                # Extract "Main" or "Safe Entity" (everything after the channel number)
+                                short_name = full_name
+                                if full_name:
+                                    # Split by spaces and find the pattern
+                                    parts = full_name.split()
+                                    # Look for pattern like "SYS1 1 Main" - extract after the number
+                                    for i, part in enumerate(parts):
+                                        if part.isdigit() and i + 1 < len(parts):
+                                            # Take everything after the number
+                                            short_name = " ".join(parts[i + 1:])
+                                            break
+                                
                                 tracking_period = ""
                                 mc_app_enabled = False
 
@@ -711,9 +726,10 @@ class CoresXMLPage(ctk.CTkFrame):
                                         enabled_attr = mgmt_app.get("Enabled", "NO")
                                         mc_app_enabled = enabled_attr.upper() == "YES"
 
-                                if name:
+                                if short_name:
                                     channels.append({
-                                        "name": name,
+                                        "name": short_name,
+                                        "full_name": full_name,
                                         "entity_id": entity_id,
                                         "tracking_period": tracking_period,
                                         "mc_app_enabled": mc_app_enabled
@@ -749,7 +765,7 @@ class CoresXMLPage(ctk.CTkFrame):
         ).grid(row=1, column=0, sticky="w", padx=14, pady=(2, 10))
 
         # ── Channels Section ────────────────────────────────────────────────────
-        channels = self._extract_kv_silva_channels(root)
+        channels = self._extract_kl4_channels(root)
         channel_count = len(channels)
 
         count_frame = ctk.CTkFrame(self._readable_frame, fg_color="transparent")
@@ -764,7 +780,7 @@ class CoresXMLPage(ctk.CTkFrame):
 
         if channel_count == 0:
             ctk.CTkLabel(
-                self._readable_frame, text="No channels found in KvSilva configuration.",
+                self._readable_frame, text="No channels found in KL4 configuration.",
                 font=ctk.CTkFont(size=12), text_color=TEXT_DIM
             ).grid(row=2, column=0, sticky="w", pady=(10, 0))
             return
@@ -789,10 +805,8 @@ class CoresXMLPage(ctk.CTkFrame):
                 font=ctk.CTkFont(size=16, weight="bold"), text_color="#1A0F0A", anchor="center"
             ).place(relx=0.5, rely=0.5, anchor="center")
 
-            # Channel name with Entity ID: "1. Main (30211)"
-            name_text = f"{idx}. {channel['name']}"
-            if channel['entity_id']:
-                name_text += f" ({channel['entity_id']})"
+            # Channel name with Entity ID: "Main [30211]"
+            name_text = f"{channel['name']} [{channel['entity_id']}]"
 
             ctk.CTkLabel(
                 channel_box, text=name_text,
