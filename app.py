@@ -560,7 +560,34 @@ class DashboardApp(ctk.CTk):
             font=ctk.CTkFont(size=12), text_color=TEXT_DIM, anchor="w"
         ).grid(row=1, column=0, sticky="w")
 
-        WeatherWidget(bar).grid(row=0, column=1, rowspan=2, sticky="e", padx=(10, 0))
+        # Live time with timezone (right-aligned)
+        time_frame = ctk.CTkFrame(bar, fg_color="transparent")
+        time_frame.grid(row=0, column=1, rowspan=2, sticky="e")
+        time_frame.columnconfigure(0, weight=1)
+
+        self._time_lbl = ctk.CTkLabel(
+            time_frame, text="",
+            font=ctk.CTkFont(size=24, weight="bold"),
+            text_color=TEXT_BRIGHT, anchor="e"
+        )
+        self._time_lbl.grid(row=0, column=0, sticky="e")
+
+        self._tz_lbl = ctk.CTkLabel(
+            time_frame, text="",
+            font=ctk.CTkFont(size=11),
+            text_color=TEXT_DIM, anchor="e"
+        )
+        self._tz_lbl.grid(row=1, column=0, sticky="e")
+
+        self._update_time()
+
+    def _update_time(self):
+        from datetime import datetime
+        import time
+        now = datetime.now()
+        self._time_lbl.configure(text=now.strftime("%I:%M %p").lstrip("0"))
+        self._tz_lbl.configure(text=time.tzname[0] if time.daylight == 0 else time.tzname[1])
+        self.after(1000, self._update_time)
 
     # ── Stat Cards ─────────────────────────────────────────────────────────────
     def _build_stats(self, parent):
