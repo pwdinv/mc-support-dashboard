@@ -4,9 +4,13 @@ Music Concierge Support Dashboard
 A customtkinter-based support dashboard with Fluent/Acrylic blur effect.
 """
 
+import os
+import re
 import sys
 import tkinter as tk
+from datetime import datetime
 from tkinter import Canvas
+from xml.etree import ElementTree as ET
 
 import customtkinter as ctk
 
@@ -33,6 +37,87 @@ TEXT_RED    = "#E05C5C"
 DIVIDER     = "#3A2A24"
 CORNER      = 12
 SIDEBAR_W   = 230
+
+KV_BASE     = r"C:\Kaleidovision\config\kv"
+
+# ── Folder-name datetime parser ────────────────────────────────────────────────
+# Format: YYYY-MM-DD-HHMM  e.g. 2025-10-02-0242  → 2025-10-02 02:42
+_FOLDER_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})-(\d{2})(\d{2})$")
+
+
+def _folder_datetime(name: str):
+    """Return a datetime for a folder name matching YYYY-MM-DD-HHMM, else None."""
+    m = _FOLDER_RE.match(name)
+    if not m:
+        return None
+    try:
+        return datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)),
+                        int(m.group(4)), int(m.group(5)))
+    except ValueError:
+        return None
+
+
+def find_latest_cores_xml(base: str = KV_BASE):
+    """
+    Scan *base* for sub-folders matching YYYY-MM-DD-HHMM, pick the latest
+    by datetime, and return (folder_name, full_path_to_cores.xml).
+    Returns (None, None) if nothing is found.
+    """
+    if not os.path.isdir(base):
+        return None, None
+    candidates = []
+    for entry in os.scandir(base):
+        if not entry.is_dir():
+            continue
+        dt = _folder_datetime(entry.name)
+        if dt is not None:
+            candidates.append((dt, entry.name))
+    if not candidates:
+        return None, None
+    candidates.sort(key=lambda x: x[0], reverse=True)
+    latest_name = candidates[0][1]
+    xml_path = os.path.join(base, latest_name, "cores.xml")
+    return latest_name, xml_path
+
+
+def pretty_xml(xml_path: str):
+    """Return (readable_text, raw_xml) from a cores.xml file."""
+    try:
+        with open(xml_path, "r", encoding="utf-8", errors="replace") as f:
+            raw = f.read()
+    except OSError as e:
+        return f"[Error reading file: {e}]", ""
+
+    # Build readable summary by walking the XML tree
+    try:
+        root = ET.fromstring(raw)
+    except ET.ParseError as e:
+        return f"[XML parse error: {e}]", raw
+
+    lines = []
+    lines.append(f"Root element : <{root.tag}>")
+    if root.attrib:
+        for k, v in root.attrib.items():
+            lines.append(f"  @{k} = {v}")
+    lines.append("")
+
+    def walk(el, depth=0):
+        indent = "  " * depth
+        attribs = "  ".join(f"{k}={v}" for k, v in el.attrib.items())
+        text = (el.text or "").strip()
+        row = f"{indent}<{el.tag}>"
+        if attribs:
+            row += f"  [{attribs}]"
+        if text:
+            row += f"  {text}"
+        lines.append(row)
+        for child in el:
+            walk(child, depth + 1)
+
+    for child in root:
+        walk(child)
+
+    return "\n".join(lines), raw
 
 
 # ── Gradient Canvas ────────────────────────────────────────────────────────────
@@ -99,21 +184,19 @@ class ShortcutButton(ctk.CTkButton):
 class Sidebar(ctk.CTkFrame):
     _NAV = [
         ("⌂", "Dashboard"),
-        ("♪", "Requests"),
-        ("✉", "Messages"),
-        ("♟", "Playlists"),
-        ("★", "Favourites"),
-        ("⚙", "Settings"),
+        ("⚙", "Cores.XML"),
     ]
 
-    def __init__(self, master, **kw):
+    def __init__(self, master, on_navigate=None, **kw):
         super().__init__(master, width=SIDEBAR_W, corner_radius=0,
                          fg_color=SIDEBAR_BG, **kw)
         self.pack_propagate(False)
+        self._on_navigate = on_navigate or (lambda page: None)
+        self._buttons = {}
+        self._active = "Dashboard"
         self._build()
 
     def _build(self):
-        # Brand
         ctk.CTkLabel(
             self, text="🎵  MC Support",
             font=ctk.CTkFont(size=16, weight="bold"),
@@ -122,23 +205,24 @@ class Sidebar(ctk.CTkFrame):
 
         ctk.CTkFrame(self, height=1, fg_color=DIVIDER).pack(fill="x", padx=12, pady=(0, 16))
 
-        # Nav
         for icon, label in self._NAV:
-            ctk.CTkButton(
+            is_active = (label == self._active)
+            btn = ctk.CTkButton(
                 self,
                 text=f"  {icon}   {label}",
                 font=ctk.CTkFont(size=13),
-                fg_color="transparent",
+                fg_color="#2E1F1A" if is_active else "transparent",
                 hover_color="#2E1F1A",
-                text_color=TEXT_BRIGHT,
+                text_color=ACCENT if is_active else TEXT_BRIGHT,
                 anchor="w",
                 corner_radius=8,
                 height=40,
-            ).pack(fill="x", padx=10, pady=2)
+                command=lambda l=label: self._navigate(l),
+            )
+            btn.pack(fill="x", padx=10, pady=2)
+            self._buttons[label] = btn
 
-        # Spacer
         ctk.CTkFrame(self, fg_color="transparent").pack(fill="both", expand=True)
-
         ctk.CTkFrame(self, height=1, fg_color=DIVIDER).pack(fill="x", padx=12, pady=(0, 10))
 
         ctk.CTkLabel(
@@ -146,6 +230,15 @@ class Sidebar(ctk.CTkFrame):
             font=ctk.CTkFont(size=12),
             text_color=TEXT_DIM, anchor="w"
         ).pack(fill="x", padx=18, pady=(0, 22))
+
+    def _navigate(self, label: str):
+        for name, btn in self._buttons.items():
+            if name == label:
+                btn.configure(fg_color="#2E1F1A", text_color=ACCENT)
+            else:
+                btn.configure(fg_color="transparent", text_color=TEXT_BRIGHT)
+        self._active = label
+        self._on_navigate(label)
 
 
 # ── Weather Widget ─────────────────────────────────────────────────────────────
@@ -185,6 +278,165 @@ class ActivityRow(ctk.CTkFrame):
             ).grid(row=0, column=col, sticky="ew", padx=6, pady=4)
 
 
+# ── Cores.XML Page ─────────────────────────────────────────────────────────────
+class CoresXMLPage(ctk.CTkFrame):
+    def __init__(self, master, **kw):
+        super().__init__(master, fg_color="transparent", **kw)
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(2, weight=1)
+        self._build()
+
+    def _build(self):
+        # ── Page title ─────────────────────────────────────────────────────────
+        title_bar = ctk.CTkFrame(self, fg_color="transparent")
+        title_bar.grid(row=0, column=0, sticky="ew", padx=20, pady=(20, 4))
+        title_bar.columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            title_bar, text="Cores.XML Viewer",
+            font=ctk.CTkFont(size=22, weight="bold"),
+            text_color=TEXT_BRIGHT, anchor="w"
+        ).grid(row=0, column=0, sticky="w")
+
+        self._source_lbl = ctk.CTkLabel(
+            title_bar, text="Scanning…",
+            font=ctk.CTkFont(size=11), text_color=TEXT_DIM, anchor="w"
+        )
+        self._source_lbl.grid(row=1, column=0, sticky="w")
+
+        # ── Refresh button ─────────────────────────────────────────────────────
+        btn_row = ctk.CTkFrame(self, fg_color="transparent")
+        btn_row.grid(row=1, column=0, sticky="ew", padx=20, pady=(4, 10))
+
+        ctk.CTkButton(
+            btn_row, text="⟳  Refresh",
+            fg_color=ACCENT, hover_color="#A06840",
+            text_color="#1A0F0A", font=ctk.CTkFont(size=13, weight="bold"),
+            corner_radius=8, height=36, width=140,
+            command=self._load,
+        ).pack(side="left")
+
+        # ── Tab view ───────────────────────────────────────────────────────────
+        tab_container = ctk.CTkFrame(self, fg_color=CARD_BG, corner_radius=CORNER)
+        tab_container.grid(row=2, column=0, sticky="nsew", padx=20, pady=(0, 20))
+        tab_container.columnconfigure(0, weight=1)
+        tab_container.rowconfigure(1, weight=1)
+
+        # Tab selector row
+        tab_sel = ctk.CTkFrame(tab_container, fg_color="transparent")
+        tab_sel.grid(row=0, column=0, sticky="ew", padx=12, pady=(12, 0))
+
+        self._tab_readable_btn = ctk.CTkButton(
+            tab_sel, text="Readable View",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            fg_color=ACCENT, hover_color="#A06840",
+            text_color="#1A0F0A", corner_radius=6, height=30, width=140,
+            command=lambda: self._switch_tab("readable"),
+        )
+        self._tab_readable_btn.pack(side="left", padx=(0, 6))
+
+        self._tab_raw_btn = ctk.CTkButton(
+            tab_sel, text="Raw XML",
+            font=ctk.CTkFont(size=12),
+            fg_color="#2A1E1A", hover_color="#3D2B22",
+            text_color=TEXT_BRIGHT, corner_radius=6, height=30, width=140,
+            command=lambda: self._switch_tab("raw"),
+        )
+        self._tab_raw_btn.pack(side="left")
+
+        ctk.CTkFrame(tab_container, height=1, fg_color=DIVIDER).grid(
+            row=0, column=0, sticky="ew", padx=0, pady=(46, 0)
+        )
+
+        # Content area — two overlapping textboxes, one shown at a time
+        content = ctk.CTkFrame(tab_container, fg_color="transparent")
+        content.grid(row=1, column=0, sticky="nsew", padx=12, pady=12)
+        content.columnconfigure(0, weight=1)
+        content.rowconfigure(0, weight=1)
+
+        common = dict(
+            corner_radius=8,
+            fg_color="#150D0D",
+            text_color=TEXT_BRIGHT,
+            font=ctk.CTkFont(family="Consolas", size=12),
+            border_color=DIVIDER,
+            border_width=1,
+            wrap="none",
+            state="disabled",
+        )
+
+        self._readable_box = ctk.CTkTextbox(content, **common)
+        self._readable_box.grid(row=0, column=0, sticky="nsew")
+
+        self._raw_box = ctk.CTkTextbox(content, **common)
+        self._raw_box.grid(row=0, column=0, sticky="nsew")
+
+        self._active_tab = "readable"
+        self._switch_tab("readable")
+        self._load()
+
+    # ── Tab switching ──────────────────────────────────────────────────────────
+    def _switch_tab(self, tab: str):
+        self._active_tab = tab
+        if tab == "readable":
+            self._readable_box.lift()
+            self._tab_readable_btn.configure(fg_color=ACCENT, text_color="#1A0F0A",
+                                             font=ctk.CTkFont(size=12, weight="bold"))
+            self._tab_raw_btn.configure(fg_color="#2A1E1A", text_color=TEXT_BRIGHT,
+                                        font=ctk.CTkFont(size=12))
+        else:
+            self._raw_box.lift()
+            self._tab_raw_btn.configure(fg_color=ACCENT, text_color="#1A0F0A",
+                                        font=ctk.CTkFont(size=12, weight="bold"))
+            self._tab_readable_btn.configure(fg_color="#2A1E1A", text_color=TEXT_BRIGHT,
+                                             font=ctk.CTkFont(size=12))
+
+    # ── Load / Refresh ─────────────────────────────────────────────────────────
+    def _set_textbox(self, box: ctk.CTkTextbox, content: str):
+        box.configure(state="normal")
+        box.delete("0.0", "end")
+        box.insert("0.0", content)
+        box.configure(state="disabled")
+
+    def _load(self):
+        folder_name, xml_path = find_latest_cores_xml()
+
+        if folder_name is None:
+            self._source_lbl.configure(
+                text=f"Base path not found: {KV_BASE}", text_color=TEXT_RED
+            )
+            self._set_textbox(self._readable_box,
+                              f"[Directory not found]\n\nExpected base path:\n  {KV_BASE}\n\n"
+                              "Please ensure Kaleidovision is installed and the config folder exists.")
+            self._set_textbox(self._raw_box, "")
+            return
+
+        if not os.path.isfile(xml_path):
+            self._source_lbl.configure(
+                text=f"cores.xml not found in: {folder_name}", text_color=TEXT_RED
+            )
+            self._set_textbox(self._readable_box,
+                              f"[File not found]\n\nLooked for:\n  {xml_path}")
+            self._set_textbox(self._raw_box, "")
+            return
+
+        dt = _folder_datetime(folder_name)
+        if dt:
+            ts = dt.strftime("%d %b %Y  %I:%M %p")
+        else:
+            ts = folder_name
+
+        self._source_lbl.configure(
+            text=f"Latest config folder: {folder_name}  ({ts})  —  {xml_path}",
+            text_color=TEXT_DIM
+        )
+
+        readable, raw = pretty_xml(xml_path)
+        self._set_textbox(self._readable_box, readable)
+        self._set_textbox(self._raw_box, raw)
+        self._switch_tab(self._active_tab)
+
+
 # ── Main Dashboard ─────────────────────────────────────────────────────────────
 class DashboardApp(ctk.CTk):
     _STATS = [
@@ -222,7 +474,6 @@ class DashboardApp(ctk.CTk):
         self._center_window(1280, 780)
         self.minsize(960, 640)
 
-        # Apply Fluent/Acrylic blur (Windows only)
         if HAS_PYWINSTYLES and sys.platform == "win32":
             try:
                 pywinstyles.apply_style(self, "acrylic")
@@ -243,35 +494,54 @@ class DashboardApp(ctk.CTk):
 
     # ── UI Construction ────────────────────────────────────────────────────────
     def _build_ui(self):
-        # Root: gradient canvas fills everything
         self._canvas = Canvas(self, highlightthickness=0, bd=0)
         self._canvas.place(x=0, y=0, relwidth=1, relheight=1)
 
-        # Overlay frame (transparent) sits on top of canvas
         overlay = ctk.CTkFrame(self, fg_color="transparent")
         overlay.place(x=0, y=0, relwidth=1, relheight=1)
         overlay.columnconfigure(1, weight=1)
         overlay.rowconfigure(0, weight=1)
 
-        # ── Sidebar ────────────────────────────────────────────────────────────
-        sidebar = Sidebar(overlay)
+        # ── Sidebar with navigation callback ───────────────────────────────────
+        sidebar = Sidebar(overlay, on_navigate=self._navigate)
         sidebar.grid(row=0, column=0, sticky="nsew")
 
-        # ── Main content ───────────────────────────────────────────────────────
-        main = ctk.CTkScrollableFrame(overlay, fg_color="transparent",
-                                      scrollbar_button_color=DIVIDER,
-                                      scrollbar_button_hover_color=ACCENT)
-        main.grid(row=0, column=1, sticky="nsew", padx=0, pady=0)
-        main.columnconfigure(0, weight=1)
+        # ── Page container (column 1) ──────────────────────────────────────────
+        self._page_container = ctk.CTkFrame(overlay, fg_color="transparent")
+        self._page_container.grid(row=0, column=1, sticky="nsew")
+        self._page_container.columnconfigure(0, weight=1)
+        self._page_container.rowconfigure(0, weight=1)
 
-        self._build_topbar(main)
-        self._build_stats(main)
-        self._build_middle(main)
-        self._build_activity(main)
+        # ── Dashboard page (scrollable) ────────────────────────────────────────
+        self._dashboard_page = ctk.CTkScrollableFrame(
+            self._page_container, fg_color="transparent",
+            scrollbar_button_color=DIVIDER,
+            scrollbar_button_hover_color=ACCENT,
+        )
+        self._dashboard_page.columnconfigure(0, weight=1)
+        self._dashboard_page.grid(row=0, column=0, sticky="nsew")
 
-        # Initial gradient draw
+        self._build_topbar(self._dashboard_page)
+        self._build_stats(self._dashboard_page)
+        self._build_middle(self._dashboard_page)
+        self._build_activity(self._dashboard_page)
+
+        # ── Cores.XML page ─────────────────────────────────────────────────────
+        self._cores_page = CoresXMLPage(self._page_container)
+        self._cores_page.grid(row=0, column=0, sticky="nsew")
+
+        # Start on Dashboard
+        self._navigate("Dashboard")
+
         self.update_idletasks()
         draw_gradient(self._canvas, self.winfo_width(), self.winfo_height())
+
+    # ── Page navigation ────────────────────────────────────────────────────────
+    def _navigate(self, page: str):
+        if page == "Dashboard":
+            self._dashboard_page.lift()
+        elif page == "Cores.XML":
+            self._cores_page.lift()
 
     # ── Top Bar ────────────────────────────────────────────────────────────────
     def _build_topbar(self, parent):
