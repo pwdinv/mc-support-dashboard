@@ -530,6 +530,14 @@ class CoresXMLPage(ctk.CTkFrame):
         ).pack(side="left", padx=(0, 8))
 
         ctk.CTkButton(
+            btn_frame, text="✏️ Edit Cores",
+            fg_color="#2A1E1A", hover_color="#3D2B22",
+            text_color=TEXT_BRIGHT, font=ctk.CTkFont(size=12),
+            corner_radius=8, height=34, width=100,
+            command=self._edit_cores,
+        ).pack(side="left", padx=(0, 8))
+
+        ctk.CTkButton(
             btn_frame, text="⟳ Refresh",
             fg_color=ACCENT, hover_color="#A06840",
             text_color="#1A0F0A", font=ctk.CTkFont(size=12, weight="bold"),
@@ -580,10 +588,10 @@ class CoresXMLPage(ctk.CTkFrame):
         self._readable_frame.columnconfigure(0, weight=1)
 
         # Raw tab: textbox container
-        content = ctk.CTkFrame(tab_container, fg_color="transparent")
-        content.grid(row=1, column=0, sticky="nsew", padx=12, pady=12)
-        content.columnconfigure(0, weight=1)
-        content.rowconfigure(0, weight=1)
+        self._raw_content_frame = ctk.CTkFrame(tab_container, fg_color="transparent")
+        self._raw_content_frame.grid(row=1, column=0, sticky="nsew", padx=12, pady=12)
+        self._raw_content_frame.columnconfigure(0, weight=1)
+        self._raw_content_frame.rowconfigure(0, weight=1)
 
         common = dict(
             corner_radius=8,
@@ -596,7 +604,7 @@ class CoresXMLPage(ctk.CTkFrame):
             state="disabled",
         )
 
-        self._raw_box = ctk.CTkTextbox(content, **common)
+        self._raw_box = ctk.CTkTextbox(self._raw_content_frame, **common)
         self._raw_box.grid(row=0, column=0, sticky="nsew")
 
         self._active_tab = "readable"
@@ -623,7 +631,7 @@ class CoresXMLPage(ctk.CTkFrame):
             self._tab_raw_btn.configure(fg_color="#2A1E1A", text_color=TEXT_BRIGHT,
                                         font=ctk.CTkFont(size=12))
         else:
-            self._raw_box.lift()
+            self._raw_content_frame.lift()
             self._tab_raw_btn.configure(fg_color=ACCENT, text_color="#1A0F0A",
                                         font=ctk.CTkFont(size=12, weight="bold"))
             self._tab_readable_btn.configure(fg_color="#2A1E1A", text_color=TEXT_BRIGHT,
@@ -664,8 +672,15 @@ class CoresXMLPage(ctk.CTkFrame):
                                 return misc.get("url")
         return None
 
-    def _extract_kv_silva_channels(self, root) -> list[str]:
-        """Extract channel names from KvSilva's Channels section."""
+    def _edit_cores(self):
+        """Open the cores.xml file in Notepad."""
+        import subprocess
+        folder_name, xml_path = find_latest_cores_xml()
+        if xml_path and os.path.isfile(xml_path):
+            subprocess.Popen(["notepad.exe", xml_path])
+
+    def _extract_kv_silva_channels(self, root) -> list[dict]:
+        """Extract channel data from KvSilva's Channels section."""
         channels = []
         for kvcore in root.findall("KvCore"):
             if kvcore.get("APPLICATION") == "KvSilva":
@@ -676,9 +691,33 @@ class CoresXMLPage(ctk.CTkFrame):
                         channels_elem = program.find("Channels")
                         if channels_elem is not None:
                             for channel in channels_elem.findall("Channel"):
-                                name = channel.get("Name")
+                                name = channel.get("Name", "")
+                                entity_id = channel.get("EntityId", "")
+                                tracking_period = ""
+                                mc_app_enabled = False
+
+                                # Get Settings/Misc for TrackingPeriod
+                                settings = channel.find("Settings")
+                                if settings is not None:
+                                    misc = settings.find("Misc")
+                                    if misc is None:
+                                        misc = settings.find("misc")
+                                    if misc is not None:
+                                        tracking_period = misc.get("TrackingPeriod", "")
+
+                                    # Get ManagementApp Enabled status
+                                    mgmt_app = settings.find("ManagementApp")
+                                    if mgmt_app is not None:
+                                        enabled_attr = mgmt_app.get("Enabled", "NO")
+                                        mc_app_enabled = enabled_attr.upper() == "YES"
+
                                 if name:
-                                    channels.append(name)
+                                    channels.append({
+                                        "name": name,
+                                        "entity_id": entity_id,
+                                        "tracking_period": tracking_period,
+                                        "mc_app_enabled": mc_app_enabled
+                                    })
         return channels
 
     def _build_readable_view(self, xml_path: str, raw_content: str):
@@ -735,14 +774,14 @@ class CoresXMLPage(ctk.CTkFrame):
         channels_frame.grid(row=2, column=0, sticky="ew")
         channels_frame.columnconfigure(0, weight=1)
 
-        for idx, channel_name in enumerate(channels, start=1):
+        for idx, channel in enumerate(channels, start=1):
             channel_box = ctk.CTkFrame(channels_frame, fg_color=CARD_BG, corner_radius=CORNER)
             channel_box.grid(row=idx - 1, column=0, sticky="ew", pady=8)
             channel_box.columnconfigure(1, weight=1)
 
             # Sequence number badge
             seq_frame = ctk.CTkFrame(channel_box, fg_color=ACCENT, corner_radius=6, width=36, height=36)
-            seq_frame.grid(row=0, column=0, padx=(14, 10), pady=14)
+            seq_frame.grid(row=0, column=0, rowspan=3, padx=(14, 10), pady=14)
             seq_frame.grid_propagate(False)
 
             ctk.CTkLabel(
@@ -750,11 +789,31 @@ class CoresXMLPage(ctk.CTkFrame):
                 font=ctk.CTkFont(size=16, weight="bold"), text_color="#1A0F0A", anchor="center"
             ).place(relx=0.5, rely=0.5, anchor="center")
 
-            # Channel name
+            # Channel name with Entity ID: "1. Main (30211)"
+            name_text = f"{idx}. {channel['name']}"
+            if channel['entity_id']:
+                name_text += f" ({channel['entity_id']})"
+
             ctk.CTkLabel(
-                channel_box, text=channel_name,
+                channel_box, text=name_text,
                 font=ctk.CTkFont(size=15, weight="bold"), text_color=TEXT_BRIGHT, anchor="w"
-            ).grid(row=0, column=1, sticky="w", padx=(0, 14), pady=14)
+            ).grid(row=0, column=1, sticky="w", padx=(0, 14), pady=(14, 4))
+
+            # Tracking Period
+            tracking_text = f"Tracking Period: {channel['tracking_period'] if channel['tracking_period'] else 'N/A'}"
+            ctk.CTkLabel(
+                channel_box, text=tracking_text,
+                font=ctk.CTkFont(size=12), text_color=TEXT_DIM, anchor="w"
+            ).grid(row=1, column=1, sticky="w", padx=(0, 14), pady=2)
+
+            # MC App status
+            mc_status = "Enabled" if channel['mc_app_enabled'] else "Disabled"
+            mc_color = TEXT_GREEN if channel['mc_app_enabled'] else TEXT_RED
+            mc_text = f"MC App: {mc_status}"
+            ctk.CTkLabel(
+                channel_box, text=mc_text,
+                font=ctk.CTkFont(size=12), text_color=mc_color, anchor="w"
+            ).grid(row=2, column=1, sticky="w", padx=(0, 14), pady=(2, 14))
 
     def _load(self):
         folder_name, xml_path = find_latest_cores_xml()
