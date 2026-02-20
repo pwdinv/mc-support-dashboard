@@ -769,21 +769,26 @@ class CoresXMLPage(ctk.CTkFrame):
             return
 
         # ── Main Content Area: Channels (left) + Details Panel (right) ──────────
+        # Both panels scroll independently
         content_frame = ctk.CTkFrame(self._readable_frame, fg_color="transparent")
         content_frame.grid(row=2, column=0, columnspan=2, sticky="nsew")
-        content_frame.columnconfigure(0, weight=1)
-        content_frame.columnconfigure(1, weight=1)
-        content_frame.rowconfigure(0, weight=1)
+        content_frame.columnconfigure((0, 1), weight=1)  # Both columns expand equally
+        content_frame.rowconfigure(0, weight=1)  # Fill available vertical space
         self._readable_frame.rowconfigure(2, weight=1)
 
-        # Left side: Channel boxes
+        # Left side: Channel boxes - independently scrollable
+        left_container = ctk.CTkFrame(content_frame, fg_color="transparent")
+        left_container.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
+        left_container.columnconfigure(0, weight=1)
+        left_container.rowconfigure(0, weight=1)
+
         left_frame = ctk.CTkScrollableFrame(
-            content_frame, fg_color="transparent",
+            left_container, fg_color="transparent",
             scrollbar_button_color=DIVIDER,
             scrollbar_button_hover_color=ACCENT,
-            width=400
+            width=420
         )
-        left_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
+        left_frame.grid(row=0, column=0, sticky="nsew")
         left_frame.columnconfigure(0, weight=1)
 
         # Store channel data and button references for toggle logic
@@ -795,26 +800,31 @@ class CoresXMLPage(ctk.CTkFrame):
             channel_box = self._create_channel_box(left_frame, idx, channel)
             channel_box.grid(row=idx - 1, column=0, sticky="ew", pady=8)
 
-        # Right side: Details panel
-        self._details_frame = ctk.CTkFrame(
-            content_frame, fg_color=CARD_BG, corner_radius=CORNER
-        )
-        self._details_frame.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
-        self._details_frame.columnconfigure(0, weight=1)
-        self._details_frame.rowconfigure(1, weight=1)
+        # Right side: Details panel - independently scrollable
+        right_container = ctk.CTkFrame(content_frame, fg_color="transparent")
+        right_container.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
+        right_container.columnconfigure(0, weight=1)
+        right_container.rowconfigure(0, weight=1)
 
-        # Details panel header
+        self._details_scroll_frame = ctk.CTkScrollableFrame(
+            right_container, fg_color=CARD_BG, corner_radius=CORNER,
+            scrollbar_button_color=DIVIDER,
+            scrollbar_button_hover_color=ACCENT,
+        )
+        self._details_scroll_frame.grid(row=0, column=0, sticky="nsew")
+        self._details_scroll_frame.columnconfigure(0, weight=1)
+
+        # Details panel header (inside scrollable frame)
         self._details_header = ctk.CTkLabel(
-            self._details_frame, text="Select a channel and menu",
+            self._details_scroll_frame, text="Select a channel and menu",
             font=ctk.CTkFont(size=14, weight="bold"), text_color=TEXT_BRIGHT, anchor="w"
         )
         self._details_header.grid(row=0, column=0, sticky="w", padx=14, pady=14)
 
-        # Details content area
-        self._details_content = ctk.CTkFrame(self._details_frame, fg_color="transparent")
-        self._details_content.grid(row=1, column=0, sticky="nsew", padx=14, pady=(0, 14))
+        # Details content area (inside scrollable frame, below header)
+        self._details_content = ctk.CTkFrame(self._details_scroll_frame, fg_color="transparent")
+        self._details_content.grid(row=1, column=0, sticky="ew", padx=14, pady=(0, 14))
         self._details_content.columnconfigure(0, weight=1)
-        self._details_content.rowconfigure(0, weight=1)
 
     def _create_channel_box(self, parent, idx: int, channel: dict) -> ctk.CTkFrame:
         """Create a channel box with menu buttons."""
@@ -919,6 +929,9 @@ class CoresXMLPage(ctk.CTkFrame):
             text=f"{channel['name']} — {menu_name}"
         )
 
+        # Reset scroll position to top
+        self._details_scroll_frame._parent_canvas.yview_moveto(0)
+
         # Create content based on menu type
         if menu_name == "Music Schedules":
             self._show_music_schedules(channel)
@@ -939,17 +952,8 @@ class CoresXMLPage(ctk.CTkFrame):
             ).grid(row=0, column=0, sticky="w", pady=(0, 10))
             return
 
-        # Create a scrollable frame for the schedule data
-        scroll_frame = ctk.CTkScrollableFrame(
-            self._details_content, fg_color="transparent",
-            scrollbar_button_color=DIVIDER,
-            scrollbar_button_hover_color=ACCENT,
-        )
-        scroll_frame.grid(row=0, column=0, sticky="nsew")
-        scroll_frame.columnconfigure(0, weight=1)
-
         # Day and Zone info header
-        header_frame = ctk.CTkFrame(scroll_frame, fg_color=CARD_BG, corner_radius=CORNER)
+        header_frame = ctk.CTkFrame(self._details_content, fg_color=CARD_BG, corner_radius=CORNER)
         header_frame.grid(row=0, column=0, sticky="ew", pady=(0, 12))
         header_frame.columnconfigure(0, weight=1)
 
@@ -961,7 +965,7 @@ class CoresXMLPage(ctk.CTkFrame):
         # Properties grid
         properties = schedule_data.get('properties', {})
         if properties:
-            props_frame = ctk.CTkFrame(scroll_frame, fg_color="transparent")
+            props_frame = ctk.CTkFrame(self._details_content, fg_color="transparent")
             props_frame.grid(row=1, column=0, sticky="ew")
             props_frame.columnconfigure((0, 1), weight=1)
 
