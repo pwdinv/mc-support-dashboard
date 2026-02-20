@@ -802,8 +802,12 @@ class CoresXMLPage(ctk.CTkFrame):
         )
         left_frame.grid(row=1, column=0, sticky="nsew")
         left_frame.columnconfigure(0, weight=1)
-        # Force internal canvas to fill
-        left_frame._parent_canvas.configure(height=800)
+        # Configure scrollable frame to expand
+        left_frame._parent_canvas.configure(height=0)
+        left_frame.grid_rowconfigure(0, weight=1)
+
+        # Store reference for dynamic resizing
+        self._left_scrollable = left_frame
 
         # Store channel data and button references for toggle logic
         self._channel_buttons = {}
@@ -838,8 +842,34 @@ class CoresXMLPage(ctk.CTkFrame):
         )
         self._details_scroll_frame.grid(row=1, column=0, sticky="nsew")
         self._details_scroll_frame.columnconfigure(0, weight=1)
-        # Force internal canvas to fill
-        self._details_scroll_frame._parent_canvas.configure(height=800)
+        # Configure scrollable frame to expand
+        self._details_scroll_frame._parent_canvas.configure(height=0)
+        self._details_scroll_frame.grid_rowconfigure(0, weight=1)
+
+        # Store reference for dynamic resizing
+        self._right_scrollable = self._details_scroll_frame
+
+        # Add resize binding to adjust scrollable frame heights
+        def _on_container_resize(event=None):
+            """Resize scrollable frames to fill available height."""
+            try:
+                # Get available height from parent containers
+                left_height = left_container.winfo_height() - left_header.winfo_height() - 20
+                right_height = right_container.winfo_height() - right_header.winfo_height() - 20
+                
+                if left_height > 100:
+                    left_frame._parent_canvas.configure(height=left_height)
+                if right_height > 100:
+                    self._details_scroll_frame._parent_canvas.configure(height=right_height)
+            except Exception:
+                pass
+        
+        # Bind to container resize
+        left_container.bind("<Configure>", _on_container_resize)
+        right_container.bind("<Configure>", _on_container_resize)
+        
+        # Initial resize after UI is built
+        self._readable_frame.after(100, _on_container_resize)
 
         # Details panel header
         self._details_header = ctk.CTkLabel(
