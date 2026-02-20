@@ -734,8 +734,9 @@ class CoresXMLPage(ctk.CTkFrame):
                                     })
         return channels
 
+    # ── Build readable view with split layout ────────────────────────────────
     def _build_readable_view(self, xml_path: str, raw_content: str):
-        """Build the readable view with extracted XML data."""
+        """Build the readable view with channels on left and details panel on right."""
         self._clear_readable_frame()
 
         try:
@@ -748,7 +749,7 @@ class CoresXMLPage(ctk.CTkFrame):
         # ── MC Service App URL ────────────────────────────────────────────────
         mc_url = self._extract_mcservice_url(root)
         url_frame = ctk.CTkFrame(self._readable_frame, fg_color=CARD_BG, corner_radius=CORNER)
-        url_frame.grid(row=0, column=0, sticky="ew", pady=(0, 12))
+        url_frame.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 12))
         url_frame.columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
@@ -767,7 +768,7 @@ class CoresXMLPage(ctk.CTkFrame):
         channel_count = len(channels)
 
         count_frame = ctk.CTkFrame(self._readable_frame, fg_color="transparent")
-        count_frame.grid(row=1, column=0, sticky="ew", pady=(0, 12))
+        count_frame.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 12))
         count_frame.columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
@@ -783,49 +784,219 @@ class CoresXMLPage(ctk.CTkFrame):
             ).grid(row=2, column=0, sticky="w", pady=(10, 0))
             return
 
-        # ── Channel Boxes ───────────────────────────────────────────────────────
-        channels_frame = ctk.CTkFrame(self._readable_frame, fg_color="transparent")
-        channels_frame.grid(row=2, column=0, sticky="ew")
-        channels_frame.columnconfigure(0, weight=1)
+        # ── Main Content Area: Channels (left) + Details Panel (right) ──────────
+        content_frame = ctk.CTkFrame(self._readable_frame, fg_color="transparent")
+        content_frame.grid(row=2, column=0, columnspan=2, sticky="nsew")
+        content_frame.columnconfigure(0, weight=1)
+        content_frame.columnconfigure(1, weight=1)
+        content_frame.rowconfigure(0, weight=1)
+        self._readable_frame.rowconfigure(2, weight=1)
+
+        # Left side: Channel boxes
+        left_frame = ctk.CTkScrollableFrame(
+            content_frame, fg_color="transparent",
+            scrollbar_button_color=DIVIDER,
+            scrollbar_button_hover_color=ACCENT,
+            width=400
+        )
+        left_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
+        left_frame.columnconfigure(0, weight=1)
+
+        # Store channel data and button references for toggle logic
+        self._channel_buttons = {}
+        self._current_channel = None
+        self._current_menu = None
 
         for idx, channel in enumerate(channels, start=1):
-            channel_box = ctk.CTkFrame(channels_frame, fg_color=CARD_BG, corner_radius=CORNER)
+            channel_box = self._create_channel_box(left_frame, idx, channel)
             channel_box.grid(row=idx - 1, column=0, sticky="ew", pady=8)
-            channel_box.columnconfigure(1, weight=1)
 
-            # Sequence number badge
-            seq_frame = ctk.CTkFrame(channel_box, fg_color=ACCENT, corner_radius=6, width=36, height=36)
-            seq_frame.grid(row=0, column=0, rowspan=3, padx=(14, 10), pady=14)
-            seq_frame.grid_propagate(False)
+        # Right side: Details panel
+        self._details_frame = ctk.CTkFrame(
+            content_frame, fg_color=CARD_BG, corner_radius=CORNER
+        )
+        self._details_frame.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
+        self._details_frame.columnconfigure(0, weight=1)
+        self._details_frame.rowconfigure(1, weight=1)
 
-            ctk.CTkLabel(
-                seq_frame, text=str(idx),
-                font=ctk.CTkFont(size=16, weight="bold"), text_color="#1A0F0A", anchor="center"
-            ).place(relx=0.5, rely=0.5, anchor="center")
+        # Details panel header
+        self._details_header = ctk.CTkLabel(
+            self._details_frame, text="Select a channel and menu",
+            font=ctk.CTkFont(size=14, weight="bold"), text_color=TEXT_BRIGHT, anchor="w"
+        )
+        self._details_header.grid(row=0, column=0, sticky="w", padx=14, pady=14)
 
-            # Channel name with Entity ID: "Main [30211]"
-            name_text = f"{channel['name']} [{channel['entity_id']}]"
+        # Details content area
+        self._details_content = ctk.CTkFrame(self._details_frame, fg_color="transparent")
+        self._details_content.grid(row=1, column=0, sticky="nsew", padx=14, pady=(0, 14))
+        self._details_content.columnconfigure(0, weight=1)
+        self._details_content.rowconfigure(0, weight=1)
 
-            ctk.CTkLabel(
-                channel_box, text=name_text,
-                font=ctk.CTkFont(size=15, weight="bold"), text_color=TEXT_BRIGHT, anchor="w"
-            ).grid(row=0, column=1, sticky="w", padx=(0, 14), pady=(14, 4))
+    def _create_channel_box(self, parent, idx: int, channel: dict) -> ctk.CTkFrame:
+        """Create a channel box with menu buttons."""
+        channel_box = ctk.CTkFrame(parent, fg_color=CARD_BG, corner_radius=CORNER)
+        channel_box.columnconfigure(1, weight=1)
 
-            # Tracking Period
-            tracking_text = f"Tracking Period: {channel['tracking_period'] if channel['tracking_period'] else 'N/A'}"
-            ctk.CTkLabel(
-                channel_box, text=tracking_text,
-                font=ctk.CTkFont(size=12), text_color=TEXT_DIM, anchor="w"
-            ).grid(row=1, column=1, sticky="w", padx=(0, 14), pady=2)
+        # Sequence number badge
+        seq_frame = ctk.CTkFrame(channel_box, fg_color=ACCENT, corner_radius=6, width=36, height=36)
+        seq_frame.grid(row=0, column=0, rowspan=2, padx=(14, 10), pady=14)
+        seq_frame.grid_propagate(False)
 
-            # MC App status
-            mc_status = "Enabled" if channel['mc_app_enabled'] else "Disabled"
-            mc_color = TEXT_GREEN if channel['mc_app_enabled'] else TEXT_RED
-            mc_text = f"MC App: {mc_status}"
-            ctk.CTkLabel(
-                channel_box, text=mc_text,
-                font=ctk.CTkFont(size=12), text_color=mc_color, anchor="w"
-            ).grid(row=2, column=1, sticky="w", padx=(0, 14), pady=(2, 14))
+        ctk.CTkLabel(
+            seq_frame, text=str(idx),
+            font=ctk.CTkFont(size=16, weight="bold"), text_color="#1A0F0A", anchor="center"
+        ).place(relx=0.5, rely=0.5, anchor="center")
+
+        # Channel name with Entity ID: "Main [30211]"
+        name_text = f"{channel['name']} [{channel['entity_id']}]"
+
+        ctk.CTkLabel(
+            channel_box, text=name_text,
+            font=ctk.CTkFont(size=15, weight="bold"), text_color=TEXT_BRIGHT, anchor="w"
+        ).grid(row=0, column=1, sticky="w", padx=(0, 14), pady=(14, 4))
+
+        # Info row: Tracking Period and MC App status
+        info_frame = ctk.CTkFrame(channel_box, fg_color="transparent")
+        info_frame.grid(row=1, column=1, sticky="w", padx=(0, 14), pady=(2, 4))
+
+        tracking_text = f"Tracking: {channel['tracking_period'] if channel['tracking_period'] else 'N/A'}"
+        ctk.CTkLabel(
+            info_frame, text=tracking_text,
+            font=ctk.CTkFont(size=11), text_color=TEXT_DIM, anchor="w"
+        ).pack(side="left", padx=(0, 12))
+
+        mc_status = "Enabled" if channel['mc_app_enabled'] else "Disabled"
+        mc_color = TEXT_GREEN if channel['mc_app_enabled'] else TEXT_RED
+        mc_text = f"MC App: {mc_status}"
+        ctk.CTkLabel(
+            info_frame, text=mc_text,
+            font=ctk.CTkFont(size=11), text_color=mc_color, anchor="w"
+        ).pack(side="left")
+
+        # Menu buttons row
+        btn_frame = ctk.CTkFrame(channel_box, fg_color="transparent")
+        btn_frame.grid(row=2, column=0, columnspan=2, sticky="ew", padx=14, pady=(8, 14))
+
+        menu_buttons = {}
+        channel_id = f"channel_{idx}"
+
+        for menu_name in ["Music Schedules", "Overriding Schedules", "Logs"]:
+            btn = ctk.CTkButton(
+                btn_frame, text=menu_name,
+                fg_color="#2A1E1A", hover_color="#3D2B22",
+                text_color=TEXT_BRIGHT, font=ctk.CTkFont(size=11),
+                corner_radius=6, height=28, width=110,
+                command=lambda cid=channel_id, ch=channel, m=menu_name: self._on_menu_click(cid, ch, m)
+            )
+            btn.pack(side="left", padx=(0, 6))
+            menu_buttons[menu_name] = btn
+
+        self._channel_buttons[channel_id] = {
+            "channel": channel,
+            "buttons": menu_buttons,
+            "box": channel_box
+        }
+
+        return channel_box
+
+    def _on_menu_click(self, channel_id: str, channel: dict, menu_name: str):
+        """Handle menu button click - toggle display in details panel."""
+        # If clicking same channel and same menu, do nothing (or could toggle off)
+        if self._current_channel == channel_id and self._current_menu == menu_name:
+            return
+
+        # Reset previous button styling
+        if self._current_channel and self._current_channel in self._channel_buttons:
+            old_buttons = self._channel_buttons[self._current_channel]["buttons"]
+            if self._current_menu in old_buttons:
+                old_buttons[self._current_menu].configure(
+                    fg_color="#2A1E1A", text_color=TEXT_BRIGHT
+                )
+
+        # Set new active button styling
+        new_buttons = self._channel_buttons[channel_id]["buttons"]
+        new_buttons[menu_name].configure(fg_color=ACCENT, text_color="#1A0F0A")
+
+        # Update state
+        self._current_channel = channel_id
+        self._current_menu = menu_name
+
+        # Update details panel
+        self._update_details_panel(channel, menu_name)
+
+    def _update_details_panel(self, channel: dict, menu_name: str):
+        """Update the details panel with content based on channel and menu."""
+        # Clear existing content
+        for widget in self._details_content.winfo_children():
+            widget.destroy()
+
+        # Update header
+        self._details_header.configure(
+            text=f"{channel['name']} — {menu_name}"
+        )
+
+        # Create content based on menu type
+        if menu_name == "Music Schedules":
+            self._show_music_schedules(channel)
+        elif menu_name == "Overriding Schedules":
+            self._show_overriding_schedules(channel)
+        elif menu_name == "Logs":
+            self._show_logs(channel)
+
+    def _show_music_schedules(self, channel: dict):
+        """Display Music Schedules content."""
+        # Placeholder content - will be populated from XML later
+        ctk.CTkLabel(
+            self._details_content, text="Music Schedules",
+            font=ctk.CTkFont(size=12, weight="bold"), text_color=ACCENT, anchor="w"
+        ).grid(row=0, column=0, sticky="w", pady=(0, 10))
+
+        content = ctk.CTkTextbox(
+            self._details_content, corner_radius=8,
+            fg_color="#150D0D", text_color=TEXT_BRIGHT,
+            font=ctk.CTkFont(family="Consolas", size=11),
+            border_color=DIVIDER, border_width=1,
+            wrap="word"
+        )
+        content.grid(row=1, column=0, sticky="nsew")
+        content.insert("0.0", f"Music schedule data for {channel['name']}...")
+        content.configure(state="disabled")
+
+    def _show_overriding_schedules(self, channel: dict):
+        """Display Overriding Schedules content."""
+        ctk.CTkLabel(
+            self._details_content, text="Overriding Schedules",
+            font=ctk.CTkFont(size=12, weight="bold"), text_color=ACCENT, anchor="w"
+        ).grid(row=0, column=0, sticky="w", pady=(0, 10))
+
+        content = ctk.CTkTextbox(
+            self._details_content, corner_radius=8,
+            fg_color="#150D0D", text_color=TEXT_BRIGHT,
+            font=ctk.CTkFont(family="Consolas", size=11),
+            border_color=DIVIDER, border_width=1,
+            wrap="word"
+        )
+        content.grid(row=1, column=0, sticky="nsew")
+        content.insert("0.0", f"Overriding schedule data for {channel['name']}...")
+        content.configure(state="disabled")
+
+    def _show_logs(self, channel: dict):
+        """Display Logs content."""
+        ctk.CTkLabel(
+            self._details_content, text="Logs",
+            font=ctk.CTkFont(size=12, weight="bold"), text_color=ACCENT, anchor="w"
+        ).grid(row=0, column=0, sticky="w", pady=(0, 10))
+
+        content = ctk.CTkTextbox(
+            self._details_content, corner_radius=8,
+            fg_color="#150D0D", text_color=TEXT_BRIGHT,
+            font=ctk.CTkFont(family="Consolas", size=11),
+            border_color=DIVIDER, border_width=1,
+            wrap="word"
+        )
+        content.grid(row=1, column=0, sticky="nsew")
+        content.insert("0.0", f"Log entries for {channel['name']}...")
+        content.configure(state="disabled")
 
     def _load(self):
         folder_name, xml_path = find_latest_cores_xml()
