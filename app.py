@@ -741,13 +741,13 @@ class CoresXMLPage(ctk.CTkFrame):
 
         try:
             tree = ET.parse(xml_path)
-            root = tree.getroot()
+            self._xml_root = tree.getroot()
         except Exception as e:
             self._show_error_in_readable(f"[Error parsing XML: {e}]")
             return
 
         # ── MC Service App URL ────────────────────────────────────────────────
-        mc_url = self._extract_mcservice_url(root)
+        mc_url = self._extract_mcservice_url(self._xml_root)
         url_frame = ctk.CTkFrame(self._readable_frame, fg_color=CARD_BG, corner_radius=CORNER)
         url_frame.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 12))
         url_frame.columnconfigure(0, weight=1)
@@ -764,7 +764,7 @@ class CoresXMLPage(ctk.CTkFrame):
         ).grid(row=1, column=0, sticky="w", padx=14, pady=(2, 10))
 
         # ── Channels Section ────────────────────────────────────────────────────
-        channels = self._extract_kl4_channels(root)
+        channels = self._extract_kl4_channels(self._xml_root)
         channel_count = len(channels)
 
         count_frame = ctk.CTkFrame(self._readable_frame, fg_color="transparent")
@@ -944,23 +944,105 @@ class CoresXMLPage(ctk.CTkFrame):
             self._show_logs(channel)
 
     def _show_music_schedules(self, channel: dict):
-        """Display Music Schedules content."""
-        # Placeholder content - will be populated from XML later
-        ctk.CTkLabel(
-            self._details_content, text="Music Schedules",
-            font=ctk.CTkFont(size=12, weight="bold"), text_color=ACCENT, anchor="w"
-        ).grid(row=0, column=0, sticky="w", pady=(0, 10))
+        """Display Music Schedules content with extracted XML data."""
+        # Extract music schedule data from the stored XML root
+        schedule_data = self._extract_music_schedule(channel.get('entity_id', ''))
 
-        content = ctk.CTkTextbox(
-            self._details_content, corner_radius=8,
-            fg_color="#150D0D", text_color=TEXT_BRIGHT,
-            font=ctk.CTkFont(family="Consolas", size=11),
-            border_color=DIVIDER, border_width=1,
-            wrap="word"
+        if not schedule_data:
+            ctk.CTkLabel(
+                self._details_content, text="No Music Schedule data found for this channel.",
+                font=ctk.CTkFont(size=12), text_color=TEXT_DIM, anchor="w"
+            ).grid(row=0, column=0, sticky="w", pady=(0, 10))
+            return
+
+        # Create a scrollable frame for the schedule data
+        scroll_frame = ctk.CTkScrollableFrame(
+            self._details_content, fg_color="transparent",
+            scrollbar_button_color=DIVIDER,
+            scrollbar_button_hover_color=ACCENT,
         )
-        content.grid(row=1, column=0, sticky="nsew")
-        content.insert("0.0", f"Music schedule data for {channel['name']}...")
-        content.configure(state="disabled")
+        scroll_frame.grid(row=0, column=0, sticky="nsew")
+        scroll_frame.columnconfigure(0, weight=1)
+
+        # Day and Zone info header
+        header_frame = ctk.CTkFrame(scroll_frame, fg_color=CARD_BG, corner_radius=CORNER)
+        header_frame.grid(row=0, column=0, sticky="ew", pady=(0, 12))
+        header_frame.columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            header_frame, text=f"Day ID: {schedule_data.get('day_id', 'N/A')}  |  Zone ID: {schedule_data.get('zone_id', 'N/A')}",
+            font=ctk.CTkFont(size=11, weight="bold"), text_color=ACCENT, anchor="w"
+        ).grid(row=0, column=0, sticky="w", padx=12, pady=10)
+
+        # Properties grid
+        properties = schedule_data.get('properties', {})
+        if properties:
+            props_frame = ctk.CTkFrame(scroll_frame, fg_color="transparent")
+            props_frame.grid(row=1, column=0, sticky="ew")
+            props_frame.columnconfigure((0, 1), weight=1)
+
+            row = 0
+            for key, value in properties.items():
+                # Key label
+                ctk.CTkLabel(
+                    props_frame, text=key,
+                    font=ctk.CTkFont(size=11), text_color=TEXT_DIM, anchor="w"
+                ).grid(row=row, column=0, sticky="w", padx=(0, 10), pady=4)
+
+                # Value label
+                ctk.CTkLabel(
+                    props_frame, text=str(value),
+                    font=ctk.CTkFont(size=11, weight="bold"), text_color=TEXT_BRIGHT, anchor="w"
+                ).grid(row=row, column=1, sticky="w", pady=4)
+
+                row += 1
+
+    def _extract_music_schedule(self, entity_id: str) -> dict | None:
+        """Extract music schedule data for a specific channel from the stored XML root."""
+        if not hasattr(self, '_xml_root') or self._xml_root is None:
+            return None
+
+        root = self._xml_root
+
+        for kvcore in root.findall("KvCore"):
+            if kvcore.get("APPLICATION") == "KL4":
+                programs = kvcore.find("Programs")
+                if programs is not None:
+                    program = programs.find("Program")
+                    if program is not None:
+                        channels_elem = program.find("Channels")
+                        if channels_elem is not None:
+                            for channel in channels_elem.findall("Channel"):
+                                if channel.get("EntityId") == entity_id:
+                                    # Found the channel, now find Schedule ENGINE="Music"
+                                    for schedule in channel.findall("Schedule"):
+                                        if schedule.get("ENGINE") == "Music":
+                                            # Found the music schedule, extract Day and Zone data
+                                            schedule_data = {
+                                                'day_id': None,
+                                                'zone_id': None,
+                                                'properties': {}
+                                            }
+
+                                            # Get Day with ID="0"
+                                            day = schedule.find("Day[@ID='0']")
+                                            if day is not None:
+                                                schedule_data['day_id'] = day.get("ID")
+
+                                                # Get Zone with ID="1"
+                                                zone = day.find("Zone[@ID='1']")
+                                                if zone is not None:
+                                                    schedule_data['zone_id'] = zone.get("ID")
+
+                                                    # Extract all Property tags
+                                                    for prop in zone.findall("Property"):
+                                                        key = prop.get("KEY")
+                                                        value = prop.get("VALUE")
+                                                        if key and value is not None:
+                                                            schedule_data['properties'][key] = value
+
+                                            return schedule_data
+        return None
 
     def _show_overriding_schedules(self, channel: dict):
         """Display Overriding Schedules content."""
