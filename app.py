@@ -900,6 +900,8 @@ class CoresXMLPage(ctk.CTkFrame):
 
         menu_buttons = {}
         channel_id = f"channel_{idx}"
+        # Store channel number for file path lookups
+        channel['channel_number'] = idx
 
         for menu_name in ["Music Schedules", "Overriding Schedules", "Logs"]:
             btn = ctk.CTkButton(
@@ -971,17 +973,17 @@ class CoresXMLPage(ctk.CTkFrame):
 
     def _show_music_schedules(self, channel: dict):
         """Display Music Schedules content with files from Channel[N]\Profiles folder."""
-        # Get channel number from entity_id
-        entity_id = channel.get('entity_id', '')
-        if not entity_id:
+        # Get channel number (sequential index) - NOT entity_id
+        channel_num = channel.get('channel_number', 0)
+        if not channel_num:
             ctk.CTkLabel(
-                self._details_content, text="No channel ID available.",
+                self._details_content, text="No channel number available.",
                 font=ctk.CTkFont(size=12), text_color=TEXT_DIM, anchor="w"
             ).grid(row=0, column=0, sticky="w", pady=(0, 10))
             return
 
         # Build base folder path: C:\Kaleidovision\music\Channel[N]
-        base_folder = f"C:\\Kaleidovision\\music\\Channel{entity_id}"
+        base_folder = f"C:\\Kaleidovision\\music\\Channel{channel_num}"
 
         # Check if base folder exists
         if not os.path.exists(base_folder):
@@ -1025,7 +1027,7 @@ class CoresXMLPage(ctk.CTkFrame):
         folder_name = os.path.basename(most_recent_folder)
         ctk.CTkLabel(
             folder_frame,
-            text=f"📁 Channel{entity_id} → {folder_name} → Profiles",
+            text=f"📁 Channel{channel_num} → {folder_name} → Profiles",
             font=ctk.CTkFont(size=11), text_color=ACCENT, anchor="w"
         ).grid(row=0, column=0, sticky="w", padx=12, pady=8)
 
