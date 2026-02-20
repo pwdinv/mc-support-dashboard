@@ -1002,7 +1002,7 @@ class CoresXMLPage(ctk.CTkFrame):
             ).grid(row=0, column=0, sticky="w", pady=(0, 10))
             return
 
-        # Build full path to Profiles folder
+        # Build full path to Profiles folder within the most recent date folder
         profiles_folder = os.path.join(most_recent_folder, "Profiles")
 
         if not os.path.exists(profiles_folder):
@@ -1013,7 +1013,7 @@ class CoresXMLPage(ctk.CTkFrame):
             ).grid(row=0, column=0, sticky="w", pady=(0, 10))
             return
 
-        # Scan for .olp and .djv files only
+        # Scan for .olp and .djv files in Profiles folder and its subfolders
         music_files = self._scan_music_files(profiles_folder)
 
         # Display folder info header
@@ -1021,11 +1021,11 @@ class CoresXMLPage(ctk.CTkFrame):
         folder_frame.grid(row=0, column=0, sticky="ew", pady=(0, 12))
         folder_frame.columnconfigure(0, weight=1)
 
-        # Extract folder name for display
+        # Extract folder name for display (show hierarchy: Channel1 → 2026-02-09-1002 → Profiles)
         folder_name = os.path.basename(most_recent_folder)
         ctk.CTkLabel(
             folder_frame,
-            text=f"📁 Channel{entity_id}\\{folder_name}\\Profiles",
+            text=f"📁 Channel{entity_id} → {folder_name} → Profiles",
             font=ctk.CTkFont(size=11), text_color=ACCENT, anchor="w"
         ).grid(row=0, column=0, sticky="w", padx=12, pady=8)
 
@@ -1137,21 +1137,27 @@ class CoresXMLPage(ctk.CTkFrame):
             return None
 
     def _scan_music_files(self, folder_path: str) -> list[dict]:
-        """Scan folder for .olp and .djv music profile files."""
+        """Scan folder and its subfolders for .olp and .djv music profile files."""
         files = []
         try:
-            for entry in os.scandir(folder_path):
-                if entry.is_file():
+            # Walk through the folder and all subfolders
+            for root, dirs, filenames in os.walk(folder_path):
+                for filename in filenames:
                     # Only process .olp and .djv files
-                    ext = os.path.splitext(entry.name)[1].lower()
+                    ext = os.path.splitext(filename)[1].lower()
                     if ext not in ['.olp', '.djv']:
                         continue
+
+                    full_path = os.path.join(root, filename)
                     
                     # Get file stats
-                    stat = entry.stat()
+                    stat = os.stat(full_path)
                     size_bytes = stat.st_size
                     size_kb = size_bytes / 1024
                     modified_time = datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M")
+
+                    # Get relative path from the base folder for display
+                    rel_path = os.path.relpath(full_path, folder_path)
 
                     # Determine file type
                     if ext == '.olp':
@@ -1162,8 +1168,9 @@ class CoresXMLPage(ctk.CTkFrame):
                         file_type = "Unknown"
 
                     files.append({
-                        'name': entry.name,
-                        'path': entry.path,
+                        'name': filename,
+                        'path': full_path,
+                        'rel_path': rel_path,
                         'type': file_type,
                         'size': f"{size_kb:.1f} KB" if size_kb < 1024 else f"{size_kb/1024:.1f} MB",
                         'modified': modified_time
