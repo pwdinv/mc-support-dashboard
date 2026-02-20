@@ -769,9 +769,9 @@ class CoresXMLPage(ctk.CTkFrame):
             return
 
         # ── Main Content Area: Channels (left) + Details Panel (right) ──────────
-        # Both panels scroll independently
+        # Both panels scroll independently and extend to bottom with gap
         content_frame = ctk.CTkFrame(self._readable_frame, fg_color="transparent")
-        content_frame.grid(row=2, column=0, columnspan=2, sticky="nsew")
+        content_frame.grid(row=2, column=0, columnspan=2, sticky="nsew", pady=(0, 20))  # Bottom gap
         content_frame.columnconfigure((0, 1), weight=1)  # Both columns expand equally
         content_frame.rowconfigure(0, weight=1)  # Fill available vertical space
         self._readable_frame.rowconfigure(2, weight=1)
