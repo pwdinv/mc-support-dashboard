@@ -769,26 +769,22 @@ class CoresXMLPage(ctk.CTkFrame):
             return
 
         # ── Main Content Area: Channels (left) + Details Panel (right) ──────────
-        # Both panels scroll independently and extend to bottom with gap
+        # Both panels independently fill the full height
         content_frame = ctk.CTkFrame(self._readable_frame, fg_color="transparent")
-        content_frame.grid(row=2, column=0, columnspan=2, sticky="nsew", pady=(0, 20))  # Bottom gap
-        content_frame.columnconfigure((0, 1), weight=1)  # Both columns expand equally
-        content_frame.rowconfigure(0, weight=1)  # Fill available vertical space
+        content_frame.grid(row=2, column=0, columnspan=2, sticky="nsew", pady=(0, 20))
+        content_frame.columnconfigure(0, weight=1)  # Left panel expands
+        content_frame.columnconfigure(1, weight=1)  # Right panel expands
+        content_frame.rowconfigure(0, weight=1)     # Full height
         self._readable_frame.rowconfigure(2, weight=1)
 
-        # Left side: Channel boxes - independently scrollable
-        left_container = ctk.CTkFrame(content_frame, fg_color="transparent")
-        left_container.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
-        left_container.columnconfigure(0, weight=1)
-        left_container.rowconfigure(0, weight=1)
-
+        # Left side: Channel boxes - fills full height independently
         left_frame = ctk.CTkScrollableFrame(
-            left_container, fg_color="transparent",
+            content_frame, fg_color="transparent",
             scrollbar_button_color=DIVIDER,
             scrollbar_button_hover_color=ACCENT,
             width=420
         )
-        left_frame.grid(row=0, column=0, sticky="nsew")
+        left_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
         left_frame.columnconfigure(0, weight=1)
 
         # Store channel data and button references for toggle logic
@@ -800,28 +796,23 @@ class CoresXMLPage(ctk.CTkFrame):
             channel_box = self._create_channel_box(left_frame, idx, channel)
             channel_box.grid(row=idx - 1, column=0, sticky="ew", pady=8)
 
-        # Right side: Details panel - independently scrollable
-        right_container = ctk.CTkFrame(content_frame, fg_color="transparent")
-        right_container.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
-        right_container.columnconfigure(0, weight=1)
-        right_container.rowconfigure(0, weight=1)
-
+        # Right side: Details panel - fills full height independently
         self._details_scroll_frame = ctk.CTkScrollableFrame(
-            right_container, fg_color=CARD_BG, corner_radius=CORNER,
+            content_frame, fg_color=CARD_BG, corner_radius=CORNER,
             scrollbar_button_color=DIVIDER,
             scrollbar_button_hover_color=ACCENT,
         )
-        self._details_scroll_frame.grid(row=0, column=0, sticky="nsew")
+        self._details_scroll_frame.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
         self._details_scroll_frame.columnconfigure(0, weight=1)
 
-        # Details panel header (inside scrollable frame)
+        # Details panel header
         self._details_header = ctk.CTkLabel(
             self._details_scroll_frame, text="Select a channel and menu",
             font=ctk.CTkFont(size=14, weight="bold"), text_color=TEXT_BRIGHT, anchor="w"
         )
         self._details_header.grid(row=0, column=0, sticky="w", padx=14, pady=14)
 
-        # Details content area (inside scrollable frame, below header)
+        # Details content area
         self._details_content = ctk.CTkFrame(self._details_scroll_frame, fg_color="transparent")
         self._details_content.grid(row=1, column=0, sticky="ew", padx=14, pady=(0, 14))
         self._details_content.columnconfigure(0, weight=1)
