@@ -37,24 +37,30 @@ mc-support-dashboard/
 
 ## XML Data Model (cores.xml)
 
-### KL4 Channels Structure
-Channels are found under the `KL4` application (NOT `KvSilva`):
+### Music Schedule Structure
+Under each KL4 Channel, the Music Schedule data is located at:
 ```xml
-<KvCore APPLICATION="KL4">
-  <Programs>
-    <Program>
-      <Channels>
-        <Channel Id="Channel1" Name="BKK Office... 1 Main" EntityId="30211">
-          <Settings>
-            <Misc TrackingPeriod="00:00" ... />
-            <ManagementApp Enabled="YES" ... />
-          </Settings>
-        </Channel>
-      </Channels>
-    </Program>
-  </Programs>
-</KvCore>
+<Channel EntityId="30211" ...>
+  <Schedule ENGINE="Music">
+    <Day ID="0">
+      <Zone ID="1">
+        <Property KEY="ScheduleType" VALUE="Random"/>
+        <Property KEY="StartTime" VALUE="08:00:00"/>
+        <Property KEY="EndTime" VALUE="23:00:00"/>
+        <Property KEY="TagFilter" VALUE=""/>
+        <Property KEY="Tempo" VALUE="1.0"/>
+        <Property KEY="FadeIn" VALUE="5.0"/>
+        <Property KEY="FadeOut" VALUE="5.0"/>
+        <Property KEY="Crossfade" VALUE="5.0"/>
+        <Property KEY="Volume" VALUE="0.6"/>
+        <Property KEY="VolumeProfile" VALUE="Linear"/>
+      </Zone>
+    </Day>
+  </Schedule>
+</Channel>
 ```
+
+Extraction path: `KvCore(APPLICATION="KL4") > Programs > Program > Channels > Channel > Schedule(ENGINE="Music") > Day(ID="0") > Zone(ID="1") > Property tags`
 
 ### Channel Name Parsing
 The `Name` attribute contains a full descriptive name like:
