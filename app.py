@@ -895,17 +895,14 @@ class CoresXMLPage(ctk.CTkFrame):
 
     def _on_menu_click(self, channel_id: str, channel: dict, menu_name: str):
         """Handle menu button click - toggle display in details panel."""
-        # If clicking same channel and same menu, do nothing (or could toggle off)
+        # If clicking same channel and same menu, do nothing
         if self._current_channel == channel_id and self._current_menu == menu_name:
             return
 
-        # Reset previous button styling
-        if self._current_channel and self._current_channel in self._channel_buttons:
-            old_buttons = self._channel_buttons[self._current_channel]["buttons"]
-            if self._current_menu in old_buttons:
-                old_buttons[self._current_menu].configure(
-                    fg_color="#2A1E1A", text_color=TEXT_BRIGHT
-                )
+        # Reset ALL buttons to default state (defensive - ensure clean slate)
+        for ch_id, ch_data in self._channel_buttons.items():
+            for btn in ch_data["buttons"].values():
+                btn.configure(fg_color="#2A1E1A", text_color=TEXT_BRIGHT)
 
         # Set new active button styling
         new_buttons = self._channel_buttons[channel_id]["buttons"]
