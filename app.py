@@ -787,6 +787,8 @@ class CoresXMLPage(ctk.CTkFrame):
         )
         left_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
         left_frame.columnconfigure(0, weight=1)
+        # Force internal canvas to fill
+        left_frame._parent_canvas.configure(height=800)
 
         # Store channel data and button references for toggle logic
         self._channel_buttons = {}
@@ -805,6 +807,8 @@ class CoresXMLPage(ctk.CTkFrame):
         )
         self._details_scroll_frame.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
         self._details_scroll_frame.columnconfigure(0, weight=1)
+        # Force internal canvas to fill
+        self._details_scroll_frame._parent_canvas.configure(height=800)
 
         # Details panel header
         self._details_header = ctk.CTkLabel(
