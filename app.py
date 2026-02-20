@@ -769,22 +769,20 @@ class CoresXMLPage(ctk.CTkFrame):
             return
 
         # ── Main Content Area: Channels (left) + Details Panel (right) ──────────
-        # Both panels independently fill the full height
+        # Both panels independently fill the full available height using pack
         content_frame = ctk.CTkFrame(self._readable_frame, fg_color="transparent")
         content_frame.grid(row=2, column=0, columnspan=2, sticky="nsew", pady=(0, 20))
-        content_frame.columnconfigure(0, weight=1)  # Left panel expands
-        content_frame.columnconfigure(1, weight=1)  # Right panel expands
-        content_frame.rowconfigure(0, weight=1)     # Full height
         self._readable_frame.rowconfigure(2, weight=1)
 
-        # Left side: Channel boxes - fills full height independently
+        # Use pack instead of grid - allows independent vertical expansion
+        # Left side: Channel boxes - fills full height
         left_frame = ctk.CTkScrollableFrame(
             content_frame, fg_color="transparent",
             scrollbar_button_color=DIVIDER,
             scrollbar_button_hover_color=ACCENT,
             width=420
         )
-        left_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
+        left_frame.pack(side="left", fill="both", expand=True, padx=(0, 10))
         left_frame.columnconfigure(0, weight=1)
 
         # Store channel data and button references for toggle logic
@@ -802,7 +800,7 @@ class CoresXMLPage(ctk.CTkFrame):
             scrollbar_button_color=DIVIDER,
             scrollbar_button_hover_color=ACCENT,
         )
-        self._details_scroll_frame.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
+        self._details_scroll_frame.pack(side="right", fill="both", expand=True, padx=(10, 0))
         self._details_scroll_frame.columnconfigure(0, weight=1)
 
         # Details panel header
