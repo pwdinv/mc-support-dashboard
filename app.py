@@ -970,7 +970,7 @@ class CoresXMLPage(ctk.CTkFrame):
             self._show_logs(channel)
 
     def _show_music_schedules(self, channel: dict):
-        """Display Music Schedules content with files from Channel[N] folder."""
+        """Display Music Schedules content with files from Channel[N]\Profiles folder."""
         # Get channel number from entity_id
         entity_id = channel.get('entity_id', '')
         if not entity_id:
@@ -980,43 +980,66 @@ class CoresXMLPage(ctk.CTkFrame):
             ).grid(row=0, column=0, sticky="w", pady=(0, 10))
             return
 
-        # Build folder path: C:\Kaleidovision\music\Channel[N]
-        music_folder = f"C:\\Kaleidovision\\music\\Channel{entity_id}"
+        # Build base folder path: C:\Kaleidovision\music\Channel[N]
+        base_folder = f"C:\\Kaleidovision\\music\\Channel{entity_id}"
 
-        # Check if folder exists
-        if not os.path.exists(music_folder):
+        # Check if base folder exists
+        if not os.path.exists(base_folder):
             ctk.CTkLabel(
                 self._details_content,
-                text=f"Music folder not found:\n{music_folder}",
+                text=f"Music folder not found:\n{base_folder}",
                 font=ctk.CTkFont(size=12), text_color=TEXT_DIM, anchor="w"
             ).grid(row=0, column=0, sticky="w", pady=(0, 10))
             return
 
-        # Scan for music profile files
-        music_files = self._scan_music_files(music_folder)
-
-        if not music_files:
+        # Find the most recent subfolder (format: YYYY-MM-DD-HHMM)
+        most_recent_folder = self._find_most_recent_folder(base_folder)
+        if not most_recent_folder:
             ctk.CTkLabel(
                 self._details_content,
-                text=f"No music files found in:\n{music_folder}",
+                text=f"No valid date folders found in:\n{base_folder}",
                 font=ctk.CTkFont(size=12), text_color=TEXT_DIM, anchor="w"
             ).grid(row=0, column=0, sticky="w", pady=(0, 10))
             return
+
+        # Build full path to Profiles folder
+        profiles_folder = os.path.join(most_recent_folder, "Profiles")
+
+        if not os.path.exists(profiles_folder):
+            ctk.CTkLabel(
+                self._details_content,
+                text=f"Profiles folder not found:\n{profiles_folder}",
+                font=ctk.CTkFont(size=12), text_color=TEXT_DIM, anchor="w"
+            ).grid(row=0, column=0, sticky="w", pady=(0, 10))
+            return
+
+        # Scan for .olp and .djv files only
+        music_files = self._scan_music_files(profiles_folder)
 
         # Display folder info header
         folder_frame = ctk.CTkFrame(self._details_content, fg_color=CARD_BG, corner_radius=CORNER)
         folder_frame.grid(row=0, column=0, sticky="ew", pady=(0, 12))
         folder_frame.columnconfigure(0, weight=1)
 
+        # Extract folder name for display
+        folder_name = os.path.basename(most_recent_folder)
         ctk.CTkLabel(
             folder_frame,
-            text=f"📁 {music_folder}",
+            text=f"📁 Channel{entity_id}\\{folder_name}\\Profiles",
             font=ctk.CTkFont(size=11), text_color=ACCENT, anchor="w"
         ).grid(row=0, column=0, sticky="w", padx=12, pady=8)
 
+        if not music_files:
+            ctk.CTkLabel(
+                folder_frame,
+                text="No .olp or .djv files found",
+                font=ctk.CTkFont(size=10), text_color=TEXT_DIM, anchor="w"
+            ).grid(row=1, column=0, sticky="w", padx=12, pady=(0, 8))
+            return
+
         ctk.CTkLabel(
             folder_frame,
-            text=f"{len(music_files)} files found",
+            text=f"{len(music_files)} files found (.olp, .djv)",
             font=ctk.CTkFont(size=10), text_color=TEXT_DIM, anchor="w"
         ).grid(row=1, column=0, sticky="w", padx=12, pady=(0, 8))
 
@@ -1078,31 +1101,65 @@ class CoresXMLPage(ctk.CTkFrame):
                                             return schedule_data
         return None
 
+    def _find_most_recent_folder(self, base_folder: str) -> str | None:
+        """Find the most recent folder by parsing date from folder names (format: YYYY-MM-DD-HHMM)."""
+        try:
+            folders = []
+            for entry in os.scandir(base_folder):
+                if entry.is_dir():
+                    folder_name = entry.name
+                    # Parse format: YYYY-MM-DD-HHMM (e.g., 2026-02-09-1002)
+                    try:
+                        parts = folder_name.split('-')
+                        if len(parts) == 4:
+                            year = int(parts[0])
+                            month = int(parts[1])
+                            day = int(parts[2])
+                            time_str = parts[3]
+                            hour = int(time_str[:2]) if len(time_str) >= 2 else 0
+                            minute = int(time_str[2:4]) if len(time_str) >= 4 else 0
+                            
+                            # Create datetime for comparison
+                            dt = datetime(year, month, day, hour, minute)
+                            folders.append((dt, entry.path))
+                    except (ValueError, IndexError):
+                        # Skip folders that don't match the expected format
+                        continue
+            
+            if not folders:
+                return None
+            
+            # Sort by datetime (most recent first) and return the path
+            folders.sort(reverse=True)
+            return folders[0][1]
+        except Exception as e:
+            print(f"Error finding most recent folder in {base_folder}: {e}")
+            return None
+
     def _scan_music_files(self, folder_path: str) -> list[dict]:
-        """Scan folder for music profile files and return their info."""
+        """Scan folder for .olp and .djv music profile files."""
         files = []
         try:
             for entry in os.scandir(folder_path):
                 if entry.is_file():
+                    # Only process .olp and .djv files
+                    ext = os.path.splitext(entry.name)[1].lower()
+                    if ext not in ['.olp', '.djv']:
+                        continue
+                    
                     # Get file stats
                     stat = entry.stat()
                     size_bytes = stat.st_size
                     size_kb = size_bytes / 1024
                     modified_time = datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M")
 
-                    # Determine file type from extension
-                    ext = os.path.splitext(entry.name)[1].lower()
-                    file_type = "Unknown"
-                    if ext == '.xml':
-                        file_type = "XML Profile"
-                    elif ext == '.mp3':
-                        file_type = "Audio File"
-                    elif ext == '.wav':
-                        file_type = "WAV Audio"
-                    elif ext == '.json':
-                        file_type = "JSON Config"
-                    elif ext in ['.txt', '.log']:
-                        file_type = "Text/Log"
+                    # Determine file type
+                    if ext == '.olp':
+                        file_type = "OLP Profile"
+                    elif ext == '.djv':
+                        file_type = "DJV Profile"
+                    else:
+                        file_type = "Unknown"
 
                     files.append({
                         'name': entry.name,
@@ -1131,16 +1188,10 @@ class CoresXMLPage(ctk.CTkFrame):
 
         # File icon based on type
         icon = "📄"
-        if file_info['type'] == "XML Profile":
+        if file_info['type'] == "OLP Profile":
             icon = "🎵"
-        elif file_info['type'] == "Audio File":
-            icon = "🔊"
-        elif file_info['type'] == "WAV Audio":
+        elif file_info['type'] == "DJV Profile":
             icon = "🎶"
-        elif file_info['type'] == "JSON Config":
-            icon = "⚙️"
-        elif file_info['type'] == "Text/Log":
-            icon = "📝"
 
         ctk.CTkLabel(
             name_frame,
