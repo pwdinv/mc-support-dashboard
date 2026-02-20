@@ -1,7 +1,7 @@
 """
 Music Concierge Support Dashboard
 ==================================
-A customtkinter-based support dashboard with Fluent/Acrylic blur effect.
+A lightweight customtkinter-based support dashboard.
 """
 
 import os
@@ -14,29 +14,24 @@ from xml.etree import ElementTree as ET
 
 import customtkinter as ctk
 
-try:
-    import pywinstyles
-    HAS_PYWINSTYLES = True
-except ImportError:
-    HAS_PYWINSTYLES = False
+import customtkinter as ctk
 
 # ── Theme ──────────────────────────────────────────────────────────────────────
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")
 
-# ── Palette ────────────────────────────────────────────────────────────────────
-GRAD_LEFT   = "#2D1B24"
-GRAD_RIGHT  = "#7A4D2E"
-CARD_BG     = "#1E1414"
-SIDEBAR_BG  = "#180F0F"
-ACCENT      = "#C8865A"
-TEXT_DIM    = "#9A8A82"
-TEXT_BRIGHT = "#F5EDE8"
-TEXT_GREEN  = "#5DBB8A"
-TEXT_RED    = "#E05C5C"
-DIVIDER     = "#3A2A24"
-CORNER      = 12
-SIDEBAR_W   = 230
+# ── Minimalist Palette ─────────────────────────────────────────────────────────
+BG_COLOR      = "#1A1A1A"  # Simple dark background
+CARD_BG       = "#242424"  # Slightly lighter for cards
+SIDEBAR_BG    = "#141414"  # Sidebar background
+ACCENT        = "#B87D4B"  # Muted accent
+TEXT_DIM      = "#888888"  # Dimmed text
+TEXT_BRIGHT   = "#E0E0E0"  # Bright text
+TEXT_GREEN    = "#4CAF50"  # Green status
+TEXT_RED      = "#EF5350"  # Red status
+DIVIDER       = "#333333"  # Divider lines
+CORNER        = 6          # Smaller corner radius
+SIDEBAR_W     = 200        # Narrower sidebar
 
 KV_BASE     = r"C:\Kaleidovision\config\kv"
 
@@ -125,22 +120,11 @@ def pretty_xml(xml_path: str):
     return "\n".join(lines), raw
 
 
-# ── Gradient Canvas ────────────────────────────────────────────────────────────
-def _hex_lerp(c1: str, c2: str, t: float) -> str:
-    r1, g1, b1 = int(c1[1:3], 16), int(c1[3:5], 16), int(c1[5:7], 16)
-    r2, g2, b2 = int(c2[1:3], 16), int(c2[3:5], 16), int(c2[5:7], 16)
-    r = int(r1 + (r2 - r1) * t)
-    g = int(g1 + (g2 - g1) * t)
-    b = int(b1 + (b2 - b1) * t)
-    return f"#{r:02x}{g:02x}{b:02x}"
-
-
-def draw_gradient(canvas: Canvas, w: int, h: int) -> None:
-    canvas.delete("gradient")
-    step = max(1, w // 300)
-    for x in range(0, w, step):
-        colour = _hex_lerp(GRAD_LEFT, GRAD_RIGHT, x / max(w - 1, 1))
-        canvas.create_line(x, 0, x, h, fill=colour, tags="gradient")
+# ── Simple background (no gradient) ───────────────────────────────────────────
+def set_background(canvas: Canvas, width: int, height: int):
+    """Set solid background color."""
+    canvas.delete("all")
+    canvas.create_rectangle(0, 0, width, height, fill=BG_COLOR, outline="")
 
 
 # ── Stat Card ──────────────────────────────────────────────────────────────────
@@ -1156,12 +1140,6 @@ class DashboardApp(ctk.CTk):
         self._center_window(1280, 780)
         self.minsize(960, 640)
 
-        if HAS_PYWINSTYLES and sys.platform == "win32":
-            try:
-                pywinstyles.apply_style(self, "acrylic")
-            except Exception:
-                pass
-
         self._build_ui()
         self.bind("<Configure>", self._on_resize)
 
@@ -1203,7 +1181,7 @@ class DashboardApp(ctk.CTk):
         self._update_time()
 
         self.update_idletasks()
-        draw_gradient(self._canvas, self.winfo_width(), self.winfo_height())
+        set_background(self._canvas, self.winfo_width(), self.winfo_height())
 
     # ── Page navigation ────────────────────────────────────────────────────────
     def _navigate(self, page: str):
@@ -1328,7 +1306,7 @@ class DashboardApp(ctk.CTk):
         w = self.winfo_width()
         h = self.winfo_height()
         if w > 1 and h > 1:
-            draw_gradient(self._canvas, w, h)
+            set_background(self._canvas, w, h)
 
 
 # ── Entry Point ────────────────────────────────────────────────────────────────
