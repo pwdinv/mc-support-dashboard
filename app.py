@@ -769,25 +769,24 @@ class CoresXMLPage(ctk.CTkFrame):
             return
 
         # ── Main Content Area: Channels (left) + Details Panel (right) ──────────
-        # Both panels independently fill the full available height using pack
+        # Use grid with weight to force both panels to fill full height
         content_frame = ctk.CTkFrame(self._readable_frame, fg_color="transparent")
         content_frame.grid(row=2, column=0, columnspan=2, sticky="nsew", pady=(0, 20))
+        content_frame.columnconfigure(0, weight=1)  # Left panel
+        content_frame.columnconfigure(1, weight=1)  # Right panel
+        content_frame.rowconfigure(0, weight=1)     # Both fill full height
         self._readable_frame.rowconfigure(2, weight=1)
-        # Ensure the grid in _readable_frame expands properly
         self._readable_frame.columnconfigure(0, weight=1)
 
-        # Use pack instead of grid - allows independent vertical expansion
-        # Left side: Channel boxes - fills full height
+        # Left side: Channel boxes
         left_frame = ctk.CTkScrollableFrame(
             content_frame, fg_color="transparent",
             scrollbar_button_color=DIVIDER,
             scrollbar_button_hover_color=ACCENT,
             width=420
         )
-        left_frame.pack(side="left", fill="both", expand=True, padx=(0, 10))
+        left_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
         left_frame.columnconfigure(0, weight=1)
-        # Ensure left_frame internal canvas fills the space
-        left_frame._parent_canvas.pack_configure(fill="both", expand=True)
 
         # Store channel data and button references for toggle logic
         self._channel_buttons = {}
@@ -798,16 +797,14 @@ class CoresXMLPage(ctk.CTkFrame):
             channel_box = self._create_channel_box(left_frame, idx, channel)
             channel_box.grid(row=idx - 1, column=0, sticky="ew", pady=8)
 
-        # Right side: Details panel - fills full height independently
+        # Right side: Details panel
         self._details_scroll_frame = ctk.CTkScrollableFrame(
             content_frame, fg_color=CARD_BG, corner_radius=CORNER,
             scrollbar_button_color=DIVIDER,
             scrollbar_button_hover_color=ACCENT,
         )
-        self._details_scroll_frame.pack(side="right", fill="both", expand=True, padx=(10, 0))
+        self._details_scroll_frame.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
         self._details_scroll_frame.columnconfigure(0, weight=1)
-        # Ensure details scroll frame internal canvas fills the space
-        self._details_scroll_frame._parent_canvas.pack_configure(fill="both", expand=True)
 
         # Details panel header
         self._details_header = ctk.CTkLabel(
