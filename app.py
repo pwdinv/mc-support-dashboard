@@ -773,6 +773,8 @@ class CoresXMLPage(ctk.CTkFrame):
         content_frame = ctk.CTkFrame(self._readable_frame, fg_color="transparent")
         content_frame.grid(row=2, column=0, columnspan=2, sticky="nsew", pady=(0, 20))
         self._readable_frame.rowconfigure(2, weight=1)
+        # Ensure the grid in _readable_frame expands properly
+        self._readable_frame.columnconfigure(0, weight=1)
 
         # Use pack instead of grid - allows independent vertical expansion
         # Left side: Channel boxes - fills full height
@@ -784,6 +786,8 @@ class CoresXMLPage(ctk.CTkFrame):
         )
         left_frame.pack(side="left", fill="both", expand=True, padx=(0, 10))
         left_frame.columnconfigure(0, weight=1)
+        # Ensure left_frame internal canvas fills the space
+        left_frame._parent_canvas.pack_configure(fill="both", expand=True)
 
         # Store channel data and button references for toggle logic
         self._channel_buttons = {}
@@ -802,6 +806,8 @@ class CoresXMLPage(ctk.CTkFrame):
         )
         self._details_scroll_frame.pack(side="right", fill="both", expand=True, padx=(10, 0))
         self._details_scroll_frame.columnconfigure(0, weight=1)
+        # Ensure details scroll frame internal canvas fills the space
+        self._details_scroll_frame._parent_canvas.pack_configure(fill="both", expand=True)
 
         # Details panel header
         self._details_header = ctk.CTkLabel(
