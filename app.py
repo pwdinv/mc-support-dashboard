@@ -934,12 +934,14 @@ class CoresXMLPage(ctk.CTkFrame):
         channel['channel_number'] = idx
 
         for menu_name in ["Music Schedules", "Overriding Schedules", "Logs"]:
+            # Capture channel_number directly in lambda to avoid closure issues
+            ch_num = idx
             btn = ctk.CTkButton(
                 btn_frame, text=menu_name,
                 fg_color="#2A1E1A", hover_color="#3D2B22",
                 text_color=TEXT_BRIGHT, font=ctk.CTkFont(size=11),
                 corner_radius=6, height=28, width=110,
-                command=lambda cid=channel_id, ch=channel, m=menu_name: self._on_menu_click(cid, ch, m)
+                command=lambda cid=channel_id, ch=channel, m=menu_name, num=ch_num: self._on_menu_click(cid, ch, m, num)
             )
             btn.pack(side="left", padx=(0, 6))
             menu_buttons[menu_name] = btn
@@ -952,8 +954,12 @@ class CoresXMLPage(ctk.CTkFrame):
 
         return channel_box
 
-    def _on_menu_click(self, channel_id: str, channel: dict, menu_name: str):
+    def _on_menu_click(self, channel_id: str, channel: dict, menu_name: str, channel_num: int = 0):
         """Handle menu button click - toggle display in details panel."""
+        # Store channel number directly
+        if channel_num > 0:
+            channel['channel_number'] = channel_num
+        
         # If clicking same channel and same menu, do nothing
         if self._current_channel == channel_id and self._current_menu == menu_name:
             return
