@@ -778,14 +778,29 @@ class CoresXMLPage(ctk.CTkFrame):
         self._readable_frame.rowconfigure(2, weight=1)
         self._readable_frame.columnconfigure(0, weight=1)
 
-        # Left side: Channel boxes
+        # Left side: Channel boxes with header
+        left_container = ctk.CTkFrame(content_frame, fg_color="transparent")
+        left_container.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
+        left_container.columnconfigure(0, weight=1)
+        left_container.rowconfigure(1, weight=1)
+
+        # Channel List header
+        left_header = ctk.CTkFrame(left_container, fg_color=CARD_BG, corner_radius=CORNER)
+        left_header.grid(row=0, column=0, sticky="ew", pady=(0, 8))
+        left_header.columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            left_header, text="Channel List",
+            font=ctk.CTkFont(size=14, weight="bold"), text_color=ACCENT, anchor="w"
+        ).grid(row=0, column=0, sticky="w", padx=12, pady=8)
+
         left_frame = ctk.CTkScrollableFrame(
-            content_frame, fg_color="transparent",
+            left_container, fg_color="transparent",
             scrollbar_button_color=DIVIDER,
             scrollbar_button_hover_color=ACCENT,
             width=420
         )
-        left_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
+        left_frame.grid(row=1, column=0, sticky="nsew")
         left_frame.columnconfigure(0, weight=1)
         # Force internal canvas to fill
         left_frame._parent_canvas.configure(height=800)
@@ -799,13 +814,29 @@ class CoresXMLPage(ctk.CTkFrame):
             channel_box = self._create_channel_box(left_frame, idx, channel)
             channel_box.grid(row=idx - 1, column=0, sticky="ew", pady=8)
 
-        # Right side: Details panel
+        # Right side: Details panel with Viewer header
+        right_container = ctk.CTkFrame(content_frame, fg_color="transparent")
+        right_container.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
+        right_container.columnconfigure(0, weight=1)
+        right_container.rowconfigure(1, weight=1)
+
+        # Viewer header
+        right_header = ctk.CTkFrame(right_container, fg_color=CARD_BG, corner_radius=CORNER)
+        right_header.grid(row=0, column=0, sticky="ew", pady=(0, 8))
+        right_header.columnconfigure(0, weight=1)
+
+        self._viewer_title = ctk.CTkLabel(
+            right_header, text="Viewer",
+            font=ctk.CTkFont(size=14, weight="bold"), text_color=ACCENT, anchor="w"
+        )
+        self._viewer_title.grid(row=0, column=0, sticky="w", padx=12, pady=8)
+
         self._details_scroll_frame = ctk.CTkScrollableFrame(
-            content_frame, fg_color=CARD_BG, corner_radius=CORNER,
+            right_container, fg_color=CARD_BG, corner_radius=CORNER,
             scrollbar_button_color=DIVIDER,
             scrollbar_button_hover_color=ACCENT,
         )
-        self._details_scroll_frame.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
+        self._details_scroll_frame.grid(row=1, column=0, sticky="nsew")
         self._details_scroll_frame.columnconfigure(0, weight=1)
         # Force internal canvas to fill
         self._details_scroll_frame._parent_canvas.configure(height=800)
@@ -922,6 +953,11 @@ class CoresXMLPage(ctk.CTkFrame):
             text=f"{channel['name']} — {menu_name}"
         )
 
+        # Update Viewer panel header
+        self._viewer_title.configure(
+            text=f"{channel['name']} — {menu_name}"
+        )
+
         # Reset scroll position to top
         self._details_scroll_frame._parent_canvas.yview_moveto(0)
 
@@ -934,49 +970,66 @@ class CoresXMLPage(ctk.CTkFrame):
             self._show_logs(channel)
 
     def _show_music_schedules(self, channel: dict):
-        """Display Music Schedules content with extracted XML data."""
-        # Extract music schedule data from the stored XML root
-        schedule_data = self._extract_music_schedule(channel.get('entity_id', ''))
-
-        if not schedule_data:
+        """Display Music Schedules content with files from Channel[N] folder."""
+        # Get channel number from entity_id
+        entity_id = channel.get('entity_id', '')
+        if not entity_id:
             ctk.CTkLabel(
-                self._details_content, text="No Music Schedule data found for this channel.",
+                self._details_content, text="No channel ID available.",
                 font=ctk.CTkFont(size=12), text_color=TEXT_DIM, anchor="w"
             ).grid(row=0, column=0, sticky="w", pady=(0, 10))
             return
 
-        # Day and Zone info header
-        header_frame = ctk.CTkFrame(self._details_content, fg_color=CARD_BG, corner_radius=CORNER)
-        header_frame.grid(row=0, column=0, sticky="ew", pady=(0, 12))
-        header_frame.columnconfigure(0, weight=1)
+        # Build folder path: C:\Kaleidovision\music\Channel[N]
+        music_folder = f"C:\\Kaleidovision\\music\\Channel{entity_id}"
+
+        # Check if folder exists
+        if not os.path.exists(music_folder):
+            ctk.CTkLabel(
+                self._details_content,
+                text=f"Music folder not found:\n{music_folder}",
+                font=ctk.CTkFont(size=12), text_color=TEXT_DIM, anchor="w"
+            ).grid(row=0, column=0, sticky="w", pady=(0, 10))
+            return
+
+        # Scan for music profile files
+        music_files = self._scan_music_files(music_folder)
+
+        if not music_files:
+            ctk.CTkLabel(
+                self._details_content,
+                text=f"No music files found in:\n{music_folder}",
+                font=ctk.CTkFont(size=12), text_color=TEXT_DIM, anchor="w"
+            ).grid(row=0, column=0, sticky="w", pady=(0, 10))
+            return
+
+        # Display folder info header
+        folder_frame = ctk.CTkFrame(self._details_content, fg_color=CARD_BG, corner_radius=CORNER)
+        folder_frame.grid(row=0, column=0, sticky="ew", pady=(0, 12))
+        folder_frame.columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
-            header_frame, text=f"Day ID: {schedule_data.get('day_id', 'N/A')}  |  Zone ID: {schedule_data.get('zone_id', 'N/A')}",
-            font=ctk.CTkFont(size=11, weight="bold"), text_color=ACCENT, anchor="w"
-        ).grid(row=0, column=0, sticky="w", padx=12, pady=10)
+            folder_frame,
+            text=f"📁 {music_folder}",
+            font=ctk.CTkFont(size=11), text_color=ACCENT, anchor="w"
+        ).grid(row=0, column=0, sticky="w", padx=12, pady=8)
 
-        # Properties grid
-        properties = schedule_data.get('properties', {})
-        if properties:
-            props_frame = ctk.CTkFrame(self._details_content, fg_color="transparent")
-            props_frame.grid(row=1, column=0, sticky="ew")
-            props_frame.columnconfigure((0, 1), weight=1)
+        ctk.CTkLabel(
+            folder_frame,
+            text=f"{len(music_files)} files found",
+            font=ctk.CTkFont(size=10), text_color=TEXT_DIM, anchor="w"
+        ).grid(row=1, column=0, sticky="w", padx=12, pady=(0, 8))
 
-            row = 0
-            for key, value in properties.items():
-                # Key label
-                ctk.CTkLabel(
-                    props_frame, text=key,
-                    font=ctk.CTkFont(size=11), text_color=TEXT_DIM, anchor="w"
-                ).grid(row=row, column=0, sticky="w", padx=(0, 10), pady=4)
+        # Display file list
+        files_frame = ctk.CTkFrame(self._details_content, fg_color="transparent")
+        files_frame.grid(row=1, column=0, sticky="ew", pady=(0, 12))
+        files_frame.columnconfigure(0, weight=1)
 
-                # Value label
-                ctk.CTkLabel(
-                    props_frame, text=str(value),
-                    font=ctk.CTkFont(size=11, weight="bold"), text_color=TEXT_BRIGHT, anchor="w"
-                ).grid(row=row, column=1, sticky="w", pady=4)
-
-                row += 1
+        row = 0
+        for file_info in music_files:
+            file_card = self._create_music_file_card(files_frame, file_info, row)
+            file_card.grid(row=row, column=0, sticky="ew", pady=4)
+            row += 1
 
     def _extract_music_schedule(self, entity_id: str) -> dict | None:
         """Extract music schedule data for a specific channel from the stored XML root."""
@@ -1024,6 +1077,102 @@ class CoresXMLPage(ctk.CTkFrame):
 
                                             return schedule_data
         return None
+
+    def _scan_music_files(self, folder_path: str) -> list[dict]:
+        """Scan folder for music profile files and return their info."""
+        files = []
+        try:
+            for entry in os.scandir(folder_path):
+                if entry.is_file():
+                    # Get file stats
+                    stat = entry.stat()
+                    size_bytes = stat.st_size
+                    size_kb = size_bytes / 1024
+                    modified_time = datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M")
+
+                    # Determine file type from extension
+                    ext = os.path.splitext(entry.name)[1].lower()
+                    file_type = "Unknown"
+                    if ext == '.xml':
+                        file_type = "XML Profile"
+                    elif ext == '.mp3':
+                        file_type = "Audio File"
+                    elif ext == '.wav':
+                        file_type = "WAV Audio"
+                    elif ext == '.json':
+                        file_type = "JSON Config"
+                    elif ext in ['.txt', '.log']:
+                        file_type = "Text/Log"
+
+                    files.append({
+                        'name': entry.name,
+                        'path': entry.path,
+                        'type': file_type,
+                        'size': f"{size_kb:.1f} KB" if size_kb < 1024 else f"{size_kb/1024:.1f} MB",
+                        'modified': modified_time
+                    })
+
+            # Sort by name
+            files.sort(key=lambda x: x['name'].lower())
+        except Exception as e:
+            print(f"Error scanning folder {folder_path}: {e}")
+
+        return files
+
+    def _create_music_file_card(self, parent, file_info: dict, index: int) -> ctk.CTkFrame:
+        """Create a card displaying music file information."""
+        card = ctk.CTkFrame(parent, fg_color=CARD_BG, corner_radius=CORNER)
+        card.columnconfigure(0, weight=1)
+
+        # File icon and name
+        name_frame = ctk.CTkFrame(card, fg_color="transparent")
+        name_frame.grid(row=0, column=0, sticky="ew", padx=12, pady=(10, 4))
+        name_frame.columnconfigure(0, weight=1)
+
+        # File icon based on type
+        icon = "📄"
+        if file_info['type'] == "XML Profile":
+            icon = "🎵"
+        elif file_info['type'] == "Audio File":
+            icon = "🔊"
+        elif file_info['type'] == "WAV Audio":
+            icon = "🎶"
+        elif file_info['type'] == "JSON Config":
+            icon = "⚙️"
+        elif file_info['type'] == "Text/Log":
+            icon = "📝"
+
+        ctk.CTkLabel(
+            name_frame,
+            text=f"{icon} {file_info['name']}",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color=TEXT_BRIGHT, anchor="w"
+        ).grid(row=0, column=0, sticky="w")
+
+        # File details
+        details_frame = ctk.CTkFrame(card, fg_color="transparent")
+        details_frame.grid(row=1, column=0, sticky="ew", padx=12, pady=(4, 10))
+        details_frame.columnconfigure((0, 1, 2), weight=1)
+
+        ctk.CTkLabel(
+            details_frame,
+            text=f"Type: {file_info['type']}",
+            font=ctk.CTkFont(size=10), text_color=TEXT_DIM, anchor="w"
+        ).grid(row=0, column=0, sticky="w")
+
+        ctk.CTkLabel(
+            details_frame,
+            text=f"Size: {file_info['size']}",
+            font=ctk.CTkFont(size=10), text_color=TEXT_DIM, anchor="w"
+        ).grid(row=0, column=1, sticky="w")
+
+        ctk.CTkLabel(
+            details_frame,
+            text=f"Modified: {file_info['modified']}",
+            font=ctk.CTkFont(size=10), text_color=TEXT_DIM, anchor="w"
+        ).grid(row=0, column=2, sticky="w")
+
+        return card
 
     def _show_overriding_schedules(self, channel: dict):
         """Display Overriding Schedules content."""
