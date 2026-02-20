@@ -188,9 +188,7 @@ class ShortcutButton(ctk.CTkButton):
 # ── Sidebar ────────────────────────────────────────────────────────────────────
 class Sidebar(ctk.CTkFrame):
     _NAV = [
-        ("⌂", "Dashboard"),
-        ("⚙", "Cores.XML"),
-        ("📄", "Config"),
+        ("⌂", "Overview"),
     ]
 
     def __init__(self, master, on_navigate=None, **kw):
@@ -199,7 +197,7 @@ class Sidebar(ctk.CTkFrame):
         self.pack_propagate(False)
         self._on_navigate = on_navigate or (lambda page: None)
         self._buttons = {}
-        self._active = "Dashboard"
+        self._active = "Overview"
         self._build()
 
     def _build(self):
@@ -506,7 +504,7 @@ class CoresXMLPage(ctk.CTkFrame):
         left_frame.columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
-            left_frame, text="Cores.XML Viewer",
+            left_frame, text="Overview",
             font=ctk.CTkFont(size=22, weight="bold"),
             text_color=TEXT_BRIGHT, anchor="w"
         ).grid(row=0, column=0, sticky="w")
@@ -943,29 +941,12 @@ class DashboardApp(ctk.CTk):
         self._page_container.columnconfigure(0, weight=1)
         self._page_container.rowconfigure(0, weight=1)
 
-        # ── Dashboard page (scrollable) ────────────────────────────────────────
-        self._dashboard_page = ctk.CTkScrollableFrame(
-            self._page_container, fg_color="transparent",
-            scrollbar_button_color=DIVIDER,
-            scrollbar_button_hover_color=ACCENT,
-        )
-        self._dashboard_page.columnconfigure(0, weight=1)
-        self._dashboard_page.grid(row=0, column=0, sticky="nsew")
+        # ── Overview page (formerly Cores.XML) ─────────────────────────────────────
+        self._overview_page = CoresXMLPage(self._page_container)
+        self._overview_page.grid(row=0, column=0, sticky="nsew")
 
-        self._build_topbar(self._dashboard_page)
-        self._build_stats(self._dashboard_page)
-        self._build_middle(self._dashboard_page)
-
-        # ── Cores.XML page ─────────────────────────────────────────────────────
-        self._cores_page = CoresXMLPage(self._page_container)
-        self._cores_page.grid(row=0, column=0, sticky="nsew")
-
-        # ── Config page ──────────────────────────────────────────────────────────
-        self._config_page = ConfigXMLPage(self._page_container)
-        self._config_page.grid(row=0, column=0, sticky="nsew")
-
-        # Start on Dashboard and start time updates
-        self._navigate("Dashboard")
+        # Start on Overview and start time updates
+        self._navigate("Overview")
         self._update_time()
 
         self.update_idletasks()
@@ -973,12 +954,8 @@ class DashboardApp(ctk.CTk):
 
     # ── Page navigation ────────────────────────────────────────────────────────
     def _navigate(self, page: str):
-        if page == "Dashboard":
-            self._dashboard_page.lift()
-        elif page == "Cores.XML":
-            self._cores_page.lift()
-        elif page == "Config":
-            self._config_page.lift()
+        if page == "Overview":
+            self._overview_page.lift()
 
     def _update_time(self):
         self._sidebar.update_time()
